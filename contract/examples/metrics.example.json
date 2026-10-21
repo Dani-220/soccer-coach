@@ -1,0 +1,197 @@
+{
+  "schema_version": "1.0",
+  "video": "synthetic_shots.mp4",
+  "player_id": "p1",
+  "reps": [
+    {
+      "rep_id": "r001",
+      "move": "shot_instep",
+      "foot": "right",
+      "metrics": [
+        {
+          "name": "plant_foot_distance",
+          "value": 0.13,
+          "unit": "body_heights",
+          "target": [
+            0.04,
+            0.16
+          ],
+          "status": "in_range",
+          "frame": 96
+        },
+        {
+          "name": "plant_foot_angle",
+          "value": null,
+          "unit": "degrees",
+          "target": [
+            -15,
+            15
+          ],
+          "status": "not_measured",
+          "frame": 96
+        },
+        {
+          "name": "knee_over_ball",
+          "value": 0.085,
+          "unit": "body_heights",
+          "target": [
+            -0.04,
+            0.1
+          ],
+          "status": "in_range",
+          "frame": 103
+        },
+        {
+          "name": "trunk_lean",
+          "value": 0.0,
+          "unit": "degrees",
+          "target": [
+            -5,
+            15
+          ],
+          "status": "in_range",
+          "frame": 103
+        },
+        {
+          "name": "hip_shoulder_separation",
+          "value": null,
+          "unit": "degrees",
+          "target": [
+            20,
+            50
+          ],
+          "status": "not_measured",
+          "frame": 96
+        },
+        {
+          "name": "ankle_lock",
+          "value": 155.0,
+          "unit": "degrees",
+          "target": [
+            140,
+            180
+          ],
+          "status": "in_range",
+          "frame": 103
+        },
+        {
+          "name": "follow_through",
+          "value": 0.359,
+          "unit": "body_heights",
+          "target": [
+            0.3,
+            1.2
+          ],
+          "status": "in_range",
+          "frame": 143
+        },
+        {
+          "name": "ball_speed",
+          "value": 20.4,
+          "unit": "m_per_s",
+          "target": [
+            16,
+            35
+          ],
+          "status": "in_range",
+          "frame": 106
+        }
+      ]
+    },
+    {
+      "rep_id": "r002",
+      "move": "shot_instep",
+      "foot": "left",
+      "metrics": [
+        {
+          "name": "plant_foot_distance",
+          "value": 0.234,
+          "unit": "body_heights",
+          "target": [
+            0.04,
+            0.16
+          ],
+          "status": "out_of_range",
+          "frame": 324
+        },
+        {
+          "name": "plant_foot_angle",
+          "value": null,
+          "unit": "degrees",
+          "target": [
+            -15,
+            15
+          ],
+          "status": "not_measured",
+          "frame": 324
+        },
+        {
+          "name": "knee_over_ball",
+          "value": -0.073,
+          "unit": "body_heights",
+          "target": [
+            -0.04,
+            0.1
+          ],
+          "status": "out_of_range",
+          "frame": 331
+        },
+        {
+          "name": "trunk_lean",
+          "value": -16.0,
+          "unit": "degrees",
+          "target": [
+            -5,
+            15
+          ],
+          "status": "out_of_range",
+          "frame": 331
+        },
+        {
+          "name": "hip_shoulder_separation",
+          "value": null,
+          "unit": "degrees",
+          "target": [
+            20,
+            50
+          ],
+          "status": "not_measured",
+          "frame": 324
+        },
+        {
+          "name": "ankle_lock",
+          "value": 130.0,
+          "unit": "degrees",
+          "target": [
+            140,
+            180
+          ],
+          "status": "out_of_range",
+          "frame": 331
+        },
+        {
+          "name": "follow_through",
+          "value": 0.168,
+          "unit": "body_heights",
+          "target": [
+            0.3,
+            1.2
+          ],
+          "status": "out_of_range",
+          "frame": 371
+        },
+        {
+          "name": "ball_speed",
+          "value": 13.6,
+          "unit": "m_per_s",
+          "target": [
+            16,
+            35
+          ],
+          "status": "out_of_range",
+          "frame": 334
+        }
+      ]
+    }
+  ]
+}

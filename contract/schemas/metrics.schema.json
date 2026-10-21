@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "metrics.json",
+  "description": "Biomechanics metrics per rep. Written by Workstream D.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "video",
+    "player_id",
+    "reps"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "video": {
+      "type": "string"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "reps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "rep_id",
+          "move",
+          "foot",
+          "metrics"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "rep_id": {
+            "type": "string"
+          },
+          "move": {
+            "type": "string",
+            "enum": [
+              "shot_instep",
+              "shot_inside",
+              "pass_inside",
+              "dribble",
+              "stepover",
+              "body_feint",
+              "tackle_block"
+            ],
+            "description": "Add new moves here (and only here) when a workstream needs one."
+          },
+          "foot": {
+            "type": "string",
+            "enum": [
+              "left",
+              "right"
+            ]
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "value",
+                "unit",
+                "target",
+                "status",
+                "frame"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "enum": [
+                    "plant_foot_distance",
+                    "plant_foot_angle",
+                    "knee_over_ball",
+                    "trunk_lean",
+                    "hip_shoulder_separation",
+                    "ankle_lock",
+                    "follow_through",
+                    "ball_speed"
+                  ]
+                },
+                "value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "description": "null only when status is not_measured"
+                },
+                "unit": {
+                  "type": "string",
+                  "enum": [
+                    "body_heights",
+                    "degrees",
+                    "m_per_s",
+                    "ratio",
+                    "count"
+                  ]
+                },
+                "target": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "in_range",
+                    "out_of_range",
+                    "not_measured"
+                  ]
+                },
+                "frame": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "not_measured"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "value": {
+                    "type": "null"
+                  }
+                }
+              },
+              "else": {
+                "properties": {
+                  "value": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

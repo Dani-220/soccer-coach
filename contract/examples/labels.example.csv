@@ -1,0 +1,3 @@
+video,rep_id,move,foot,plant_frame,contact_frame,coach_score_1to5,notes
+synthetic_shots.mp4,r001,shot_instep,right,96,103,4,synthetic ground truth
+synthetic_shots.mp4,r002,shot_instep,left,324,331,2,synthetic ground truth

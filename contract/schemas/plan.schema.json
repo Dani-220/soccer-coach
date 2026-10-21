@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "plan.json",
+  "description": "One-week training plan. Written by Workstream F.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "player_id",
+    "week_start",
+    "focus",
+    "weak_foot_share",
+    "days"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "week_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "focus": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "plant_foot_distance",
+          "plant_foot_angle",
+          "knee_over_ball",
+          "trunk_lean",
+          "hip_shoulder_separation",
+          "ankle_lock",
+          "follow_through",
+          "ball_speed"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 3
+    },
+    "weak_foot_share": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Fraction of shooting reps to do with the weak foot."
+    },
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "day",
+          "drills"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "type": "string",
+            "enum": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat",
+              "sun"
+            ]
+          },
+          "drills": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "drill_id",
+                "sets",
+                "reps",
+                "foot"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "drill_id": {
+                  "type": "string"
+                },
+                "sets": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "reps": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "foot": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "right",
+                    "both"
+                  ]
+                },
+                "note": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "retest_on": {
+      "type": "string",
+      "format": "date"
+    }
+  }
+}

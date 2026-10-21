@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "player_id": "p1",
+  "reps": [
+    {
+      "rep_id": "r001",
+      "cards": []
+    },
+    {
+      "rep_id": "r002",
+      "cards": [
+        {
+          "metric": "plant_foot_distance",
+          "headline": "Plant foot too far from the ball",
+          "measured_value": 0.234,
+          "unit": "body_heights",
+          "target": [0.04, 0.16],
+          "why": "You planted about 38 cm from the ball (target under 26 cm). Reaching for the ball makes you lean back, which is why this shot would rise.",
+          "fix": "Land your plant foot level with the ball and a hand's width to its side.",
+          "drill_ids": ["d_plant_gates", "d_walk_through_strikes"],
+          "frame": 324,
+          "compare_to_strong_foot": 0.13
+        },
+        {
+          "metric": "trunk_lean",
+          "headline": "Leaning back at contact",
+          "measured_value": -16.0,
+          "unit": "degrees",
+          "target": [-5, 15],
+          "why": "Your chest was 16 degrees behind your hips when you struck the ball. Leaning back lifts the shot and costs accuracy.",
+          "fix": "Keep your chest over the ball and land on your kicking foot after the strike.",
+          "drill_ids": ["d_land_on_kicking_foot"],
+          "frame": 331,
+          "compare_to_strong_foot": 0.0
+        }
+      ]
+    }
+  ]
+}

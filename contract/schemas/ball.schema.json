@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ball.json",
+  "description": "Per-frame ball detection. Written by Workstream B.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "video",
+    "fps",
+    "frames"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "video": {
+      "type": "string"
+    },
+    "fps": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "frames": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "f",
+          "ball"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "f": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ball": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                ],
+                "minItems": 4,
+                "maxItems": 4,
+                "description": "[x_px, y_px, radius_px, confidence]"
+              }
+            ],
+            "description": "null when the ball is not detected. Never guess or interpolate here; smoothing belongs downstream."
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+# Target ranges per move and metric. Workstream D reads this; metrics.json copies `range` into `target`.
+# These are STARTING placeholders, not validated numbers. Calibrate them in Wave 2 from your best reps
+# and coach-rated clips, and record where each number came from in `source`.
+# `views` = camera angles the metric can be measured from (side = side-on, front = facing the player).
+
+shot_instep:
+  plant_foot_distance:
+    range: [0.04, 0.16]
+    unit: body_heights
+    views: [side, front]
+    why: Planting too far from the ball makes you reach and lean back, so the shot rises.
+    source: placeholder
+  plant_foot_angle:
+    range: [-15, 15]
+    unit: degrees
+    views: [front]
+    why: The hips and the ball tend to follow the direction the plant foot points.
+    source: placeholder
+  knee_over_ball:
+    range: [-0.04, 0.10]
+    unit: body_heights
+    views: [side]
+    why: A kicking knee behind the ball at contact sends the shot high.
+    source: placeholder
+  trunk_lean:
+    range: [-5, 15]
+    unit: degrees
+    views: [side]
+    why: Leaning back at contact costs accuracy and keeps the shot from staying low.
+    source: placeholder
+  hip_shoulder_separation:
+    range: [20, 50]
+    unit: degrees
+    views: [front]
+    why: Rotating the hips ahead of the shoulders stores energy that becomes shot power.
+    source: placeholder
+  ankle_lock:
+    range: [140, 180]
+    unit: degrees
+    views: [side]
+    why: A firm, pointed ankle transfers more energy to the ball; a floppy ankle loses speed.
+    source: placeholder
+  follow_through:
+    range: [0.30, 1.20]
+    unit: body_heights
+    views: [side]
+    why: A short follow-through usually means slowing the leg down before contact.
+    source: placeholder
+  ball_speed:
+    range: [16, 35]
+    unit: m_per_s
+    views: [side]
+    why: The outcome the other metrics explain; track it to see whether fixes are working.
+    source: placeholder

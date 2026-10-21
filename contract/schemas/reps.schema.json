@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "reps.json",
+  "description": "Detected reps with phase frames and kicking foot. Written by Workstream C.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "video",
+    "player_id",
+    "reps"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "video": {
+      "type": "string"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "reps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "rep_id",
+          "move",
+          "foot",
+          "frames",
+          "confidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "rep_id": {
+            "type": "string",
+            "pattern": "^r[0-9]{3,}$"
+          },
+          "move": {
+            "type": "string",
+            "enum": [
+              "shot_instep",
+              "shot_inside",
+              "pass_inside",
+              "dribble",
+              "stepover",
+              "body_feint",
+              "tackle_block"
+            ],
+            "description": "Add new moves here (and only here) when a workstream needs one."
+          },
+          "foot": {
+            "type": "string",
+            "enum": [
+              "left",
+              "right"
+            ]
+          },
+          "frames": {
+            "type": "object",
+            "required": [
+              "start",
+              "contact",
+              "end"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "start": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "plant": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "contact": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "description": "start <= plant <= contact <= end (checked by validate.py). 'contact' is the key moment for non-kicking moves too (e.g. the feint's direction change)."
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    }
+  }
+}

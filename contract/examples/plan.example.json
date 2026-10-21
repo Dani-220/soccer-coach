@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "player_id": "p1",
+  "week_start": "2026-10-26",
+  "focus": ["plant_foot_distance", "trunk_lean"],
+  "weak_foot_share": 0.7,
+  "days": [
+    {"day": "mon", "drills": [
+      {"drill_id": "d_walk_through_strikes", "sets": 3, "reps": 8, "foot": "left", "note": "Slow, focus on plant foot placement"},
+      {"drill_id": "d_plant_gates", "sets": 3, "reps": 10, "foot": "left"}
+    ]},
+    {"day": "wed", "drills": [
+      {"drill_id": "d_land_on_kicking_foot", "sets": 3, "reps": 8, "foot": "left"},
+      {"drill_id": "d_plant_gates", "sets": 2, "reps": 10, "foot": "right", "note": "Strong foot as a reference"}
+    ]},
+    {"day": "fri", "drills": [
+      {"drill_id": "d_low_target_finishing", "sets": 4, "reps": 6, "foot": "both", "note": "Film this session for the re-test"}
+    ]}
+  ],
+  "retest_on": "2026-11-02"
+}

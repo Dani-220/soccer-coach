@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "pose.json",
+  "description": "Per-frame body keypoints for ONE tracked player. Written by Workstream B.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "video",
+    "fps",
+    "width",
+    "height",
+    "frames"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "video": {
+      "type": "string"
+    },
+    "fps": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "player_track_id": {
+      "type": "integer"
+    },
+    "frames": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "f",
+          "keypoints"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "f": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "keypoints": {
+            "type": "object",
+            "description": "Empty object {} when no player is detected. When a player IS detected, all 17 core keypoints are present (use low confidence rather than omitting).",
+            "propertyNames": {
+              "enum": [
+                "nose",
+                "left_shoulder",
+                "right_shoulder",
+                "left_elbow",
+                "right_elbow",
+                "left_wrist",
+                "right_wrist",
+                "left_hip",
+                "right_hip",
+                "left_knee",
+                "right_knee",
+                "left_ankle",
+                "right_ankle",
+                "left_heel",
+                "right_heel",
+                "left_foot_index",
+                "right_foot_index",
+                "left_eye_inner",
+                "left_eye",
+                "left_eye_outer",
+                "right_eye_inner",
+                "right_eye",
+                "right_eye_outer",
+                "left_ear",
+                "right_ear",
+                "mouth_left",
+                "mouth_right",
+                "left_pinky",
+                "right_pinky",
+                "left_index",
+                "right_index",
+                "left_thumb",
+                "right_thumb"
+              ]
+            },
+            "additionalProperties": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              ],
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "[x_px, y_px, confidence]. Origin top-left of the original video."
+            },
+            "if": {
+              "minProperties": 1
+            },
+            "then": {
+              "required": [
+                "nose",
+                "left_shoulder",
+                "right_shoulder",
+                "left_elbow",
+                "right_elbow",
+                "left_wrist",
+                "right_wrist",
+                "left_hip",
+                "right_hip",
+                "left_knee",
+                "right_knee",
+                "left_ankle",
+                "right_ankle",
+                "left_heel",
+                "right_heel",
+                "left_foot_index",
+                "right_foot_index"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

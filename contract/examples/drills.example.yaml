@@ -1,0 +1,52 @@
+# Drill library sample. Workstream F grows this to 30+ drills.
+# `fixes` must use metric names from the contract; the plan generator matches on them.
+- id: d_plant_gates
+  name: Plant-foot gates
+  fixes: [plant_foot_distance, plant_foot_angle]
+  levels: [casual, pro]
+  equipment: [ball, 2 cones or markers]
+  setup: Place two markers a hand's width beside the ball to mark where the plant foot lands.
+  coaching_points: [Land level with the ball, Plant toe points at the target]
+  default_sets: 3
+  default_reps: 10
+  minutes: 8
+- id: d_walk_through_strikes
+  name: Walk-through strikes
+  fixes: [plant_foot_distance, knee_over_ball, ankle_lock]
+  levels: [casual, pro]
+  equipment: [ball, wall or net]
+  setup: Two walking steps into the ball, strike at half power, freeze on landing.
+  coaching_points: [Knee over the ball, Toe down and ankle locked, Hold the finish for 2 seconds]
+  default_sets: 3
+  default_reps: 8
+  minutes: 8
+- id: d_land_on_kicking_foot
+  name: Land on the kicking foot
+  fixes: [trunk_lean, follow_through]
+  levels: [casual, pro]
+  equipment: [ball, goal or wall]
+  setup: Strike from 12 m and land on the kicking foot, ending a step past the ball.
+  coaching_points: [Chest over the ball, Follow through toward the target]
+  default_sets: 3
+  default_reps: 8
+  minutes: 10
+- id: d_low_target_finishing
+  name: Low-target finishing
+  fixes: [trunk_lean, knee_over_ball, ball_speed]
+  levels: [casual, pro]
+  equipment: [ball, goal, 2 targets in the bottom corners]
+  setup: Shoot from 16 m at targets in the bottom corners; only low shots count.
+  coaching_points: [Strike the middle of the ball, Keep the shot under knee height]
+  default_sets: 4
+  default_reps: 6
+  minutes: 12
+- id: d_ankle_lock_volleys
+  name: Ankle-lock dropped volleys
+  fixes: [ankle_lock, ball_speed]
+  levels: [pro]
+  equipment: [ball, wall]
+  setup: Drop the ball from your hands and strike it on the half-volley into a wall.
+  coaching_points: [Toe pointed down, Firm ankle through contact]
+  default_sets: 3
+  default_reps: 10
+  minutes: 8

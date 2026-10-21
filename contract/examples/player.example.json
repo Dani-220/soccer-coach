@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "player_id": "p1",
+  "display_name": "Test Player",
+  "strong_foot": "right",
+  "level": "casual",
+  "height_cm": 175,
+  "goals": ["shoot harder with my left foot", "keep shots low"],
+  "sessions_per_week": 3
+}
