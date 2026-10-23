@@ -16,6 +16,7 @@ import yaml
 class RepsConfig:
     # --- input filtering ---
     min_keypoint_conf: float = 0.2      # ankle/nose points below this are treated as missing
+    min_toe_conf: float = 0.5           # foot_index below this: measure foot-ball gap from the ankle alone
     min_ball_conf: float = 0.0          # ball detections below this are treated as missing
 
     # --- contact: the ball is at rest, then its speed jumps ---
@@ -24,8 +25,14 @@ class RepsConfig:
     rest_radius: float = 0.03           # H; all resting detections lie within this of their median
     jump_speed: float = 3.0             # H/s; ball speed after the jump must reach this
     max_ball_gap_s: float = 0.1         # longest ball occlusion bridged around contact (foot hides it)
-    ankle_ball_max_dist: float = 0.08   # H; an ankle must be this close to the resting ball...
-    ankle_window_s: float = 0.02        # ...within this many seconds of the contact frame
+    # A foot must touch the resting ball: gaps are measured to the ball's surface (ball.json radius).
+    foot_ball_max_gap: float = 0.08     # H; ankle->toe segment to ball surface, when the toe is confident
+    ankle_ball_max_gap: float = 0.15    # H; ankle to ball surface, when it isn't (the ball is struck
+                                        #    a foot-length ahead of the ankle, so this must be looser)
+    touch_window_s: float = 0.02        # either gap is checked within +/- this of the contact frame
+    # The detector often loses a struck ball. A ball that vanishes from rest still counts as a contact if:
+    vanish_confirm_s: float = 0.3       # ...it doesn't reappear at its resting spot within this,
+    vanish_min_foot_speed: float = 3.0  # ...and the touching foot's ankle moves at least this fast (H/s)
     min_rep_gap_s: float = 0.5          # minimum time between two contacts
 
     # --- rep boundaries ---
@@ -33,8 +40,11 @@ class RepsConfig:
     max_pose_gap_s: float = 0.1         # pose dropouts shorter than this don't split a segment
 
     # --- plant: support ankle stops moving before contact ---
-    plant_ref_window_s: float = 0.03    # support-ankle reference position = median over contact +/- this
-    plant_still_radius: float = 0.015   # H; ankle counts as planted while within this of the reference
+    plant_ref_window_s: float = 0.03    # support ankle is planted from contact - this...
+    plant_jitter_window_s: float = 0.1  # ...to contact + this; its reference position and jitter come from there
+    plant_still_radius: float = 0.015   # H; ankle counts as planted while within this of the reference,
+    plant_jitter_mult: float = 4.0      # ...or within this many jitter sigmas, whichever is larger
+    plant_still_radius_max: float = 0.06  # H; cap on the jitter-based radius
     still_max_outliers: int = 1         # consecutive noisy samples tolerated before the support ankle "moved"
     plant_max_lookback_s: float = 0.5   # never search for plant further back than this
 
@@ -52,6 +62,7 @@ class RepsConfig:
 
     # --- confidence ---
     missing_phase_penalty: float = 0.7  # confidence multiplier when plant or end could not be found
+    vanish_penalty: float = 0.8         # confidence multiplier when the ball was never seen leaving
 
     # --- output ---
     move: str = "shot_instep"

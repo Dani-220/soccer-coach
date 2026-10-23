@@ -33,7 +33,8 @@ class RepSpec:
     ball_speed_hs: float = 10.0  # H/s after contact
     plant_gap: float = 0.13      # H, support ankle behind the ball
     hide_ball_at_contact: int = 0  # frames hidden on each side of contact
-    foot_reaches_ball: bool = True
+    lose_ball_in_flight: bool = False  # detector never sees the ball after contact
+    player_offset: float = 0.0   # H; shifts the whole player along x (e.g. -1: nobody near the ball)
 
 
 @dataclass
@@ -43,6 +44,7 @@ class Scenario:
     direction: int = 1           # +1 moves left->right, -1 right->left
     gap_s: float = 0.5           # no-player frames between reps
     noise_px: float = 0.0
+    toe_conf: float = 0.9        # foot_index confidence (real detectors are least sure of the feet)
     seed: int = 0
 
 
@@ -65,13 +67,14 @@ def _rep(spec: RepSpec, fps: float):
     step = f(0.25)
     sup_land_x = -spec.plant_gap * BODY_H
     sup_from_x = sup_land_x - 0.35 * BODY_H
-    contact_pt = np.array([-0.05 * BODY_H, BALL_Y + 6])
+    # As in real footage, the ball is struck with the instep, a foot-length ahead of the ankle:
+    # the ankle is ~0.17 H from the ball's center at contact, the toe segment touches the ball.
+    contact_pt = np.array([-0.17 * BODY_H, BALL_Y])
     back_pt = np.array([sup_land_x - 0.3 * BODY_H, GROUND - 0.3 * BODY_H])
     follow_pt = np.array([0.45 * BODY_H, GROUND - 0.5 * BODY_H])
     kick_rest = np.array([sup_land_x - 0.2 * BODY_H, GROUND])
     swing_start = P - f(0.12)
-    if not spec.foot_reaches_ball:
-        contact_pt = contact_pt + [-0.25 * BODY_H, -0.2 * BODY_H]
+    off = np.array([spec.player_offset * BODY_H, 0.0])
 
     frames, balls = [], []
     for t in range(N):
@@ -94,7 +97,7 @@ def _rep(spec: RepSpec, fps: float):
         else:
             kick = contact_pt + (follow_pt - contact_pt) * _ease_out((t - C) / (E - C))
         hip = np.array([sup_land_x - 0.1 * BODY_H + 0.05 * BODY_H * _ease_out((t - P) / (E - P)), GROUND - 0.5 * BODY_H])
-        frames.append(_skeleton(hip, spec.foot, kick, sup))
+        frames.append(_skeleton(hip + off, spec.foot, kick + off, sup + off))
 
         if t <= C:
             b = np.array([0.0, BALL_Y])
@@ -102,6 +105,8 @@ def _rep(spec: RepSpec, fps: float):
             v = spec.ball_speed_hs * BODY_H / fps
             b = np.array([v * 0.97 * (t - C), BALL_Y - v * 0.25 * (t - C)])
         if abs(t - C) <= spec.hide_ball_at_contact and spec.hide_ball_at_contact > 0:
+            b = None
+        if spec.lose_ball_in_flight and t > C:
             b = None
         balls.append(b)
     truth = {"foot": spec.foot, "start": 0, "plant": P, "contact": C, "end": E}
@@ -139,7 +144,8 @@ def generate(sc: Scenario):
             kp = {}
             for name in CORE:
                 x, y = frames[t][name] + rng.normal(0, sc.noise_px, 2) if sc.noise_px else frames[t][name]
-                kp[name] = [round(float(mirror(x)), 2), round(float(y), 2), 0.9]
+                conf = sc.toe_conf if name.endswith("foot_index") else 0.9
+                kp[name] = [round(float(mirror(x)), 2), round(float(y), 2), conf]
             pose_frames.append({"f": off + t, "keypoints": kp})
             b = balls[t]
             if b is not None:

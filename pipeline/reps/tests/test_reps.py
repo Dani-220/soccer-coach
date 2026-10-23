@@ -1,6 +1,8 @@
 """Run from the repo root:  python -m unittest pipeline.reps.tests.test_reps -v"""
 import importlib.util
+import copy
 import json
+import math
 import sys
 import tempfile
 import unittest
@@ -73,6 +75,20 @@ class TestExampleFixtures(ContractMixin, unittest.TestCase):
         self.assertIsNone(self.ball["frames"][331]["ball"])
         self.assertEqual(self.out["reps"][1]["frames"]["contact"], 331)
 
+    def test_ball_lost_in_flight(self):
+        # Regression: the detector loses the struck ball; it's never seen leaving its resting spot.
+        ball = copy.deepcopy(self.ball)
+        for fr in ball["frames"]:
+            if 103 < fr["f"] < 228 or fr["f"] > 329:
+                fr["ball"] = None
+        out = detect_reps(self.pose, ball, self.player)
+        json.dumps(out)   # frame indices must be plain ints
+        self.assertValid(out, self.pose)
+        self.assertEqual(len(out["reps"]), 2)
+        for rep, normal, truth in zip(out["reps"], self.out["reps"], self.truth):
+            self.assertMatches(rep, {"foot": truth["foot"], **truth["frames"]}, contact_tol=1)
+            self.assertLess(rep["confidence"], normal["confidence"])
+
     def test_confident(self):
         for rep in self.out["reps"]:
             self.assertGreater(rep["confidence"], 0.75)
@@ -139,8 +155,63 @@ class TestSynthetic(ContractMixin, unittest.TestCase):
         self.assertEqual(len(reps), 1)
         self.assertMatches(reps[0], truths[0], contact_tol=1)
 
+    def test_ball_struck_a_foot_length_ahead_of_the_ankle(self):
+        # Regression: on real footage the ankle is 0.16-0.18 H from the ball's center at contact,
+        # and an ankle-to-center rule of 0.08 H found no shots at all.
+        for toe_conf, why in ((0.9, "toe segment"), (0.3, "ankle-only fallback")):
+            with self.subTest(why):
+                sc = Scenario(reps=[RepSpec("right"), RepSpec("left")], noise_px=1.8, toe_conf=toe_conf)
+                pose, ball, truths = generate(sc)
+                for t in truths:
+                    ank = pose["frames"][t["contact"]]["keypoints"][f"{t['foot']}_ankle"]
+                    ctr = ball["frames"][t["contact"]]["ball"]
+                    self.assertGreater(math.dist(ank[:2], ctr[:2]) / BODY_H, 0.15)
+                reps, truths = self.run_scenario(sc)
+                self.assertEqual(len(reps), 2)
+                for rep, truth in zip(reps, truths):
+                    self.assertMatches(rep, truth)
+
+    def test_ball_lost_in_flight_synthetic(self):
+        for fps in (30, 120):
+            for toe_conf in (0.9, 0.3):
+                with self.subTest(fps=fps, toe_conf=toe_conf):
+                    sc = Scenario(reps=[RepSpec("right", lose_ball_in_flight=True),
+                                        RepSpec("left", lose_ball_in_flight=True, hide_ball_at_contact=1)],
+                                  fps=fps, noise_px=1.8, toe_conf=toe_conf, seed=fps)
+                    reps, truths = self.run_scenario(sc)
+                    self.assertEqual(len(reps), 2)
+                    for rep, truth in zip(reps, truths):
+                        self.assertMatches(rep, truth, fps=fps, contact_tol=1, phase_tol=max(1, round(0.025 * fps)))
+
+    def test_ball_briefly_lost_at_rest_is_not_a_shot(self):
+        # the foot swings through a ball that never moves; the detector drops it for 17 frames around then
+        reps, _ = self.run_scenario(Scenario(reps=[RepSpec(ball_speed_hs=0, hide_ball_at_contact=8)]))
+        self.assertEqual(reps, [])
+
+    def test_ball_lost_while_player_stands_still_beside_it(self):
+        pose, ball, truths = generate(Scenario())
+        still = pose["frames"][truths[0]["end"] + 5]["keypoints"]   # support toe touching the ball
+        for fr in pose["frames"]:
+            fr["keypoints"] = copy.deepcopy(still)
+        for fr in ball["frames"]:
+            fr["ball"] = ball["frames"][0]["ball"] if fr["f"] < 60 else None
+        self.assertEqual(detect_reps(pose, ball)["reps"], [])
+
+    def test_plant_with_real_pose_jitter(self):
+        # Regression: on a player ~200 px tall, 0.015 H is ~3 px, below pose jitter, and plant came
+        # out equal to contact. The radius now widens to the jitter measured on the planted foot.
+        for fps in (30, 60):
+            for seed in range(10):
+                with self.subTest(fps=fps, seed=seed):
+                    sc = Scenario(reps=[RepSpec("right")], fps=fps, noise_px=BODY_H / 200 * 2.5, seed=seed)
+                    reps, truths = self.run_scenario(sc)
+                    fr = reps[0]["frames"]
+                    self.assertIn("plant", fr)
+                    self.assertLess(fr["plant"], fr["contact"])
+                    self.assertLessEqual(abs(fr["plant"] - truths[0]["plant"]), round(0.05 * fps))
+
     def test_ball_moves_without_a_foot_near_it(self):
-        reps, _ = self.run_scenario(Scenario(reps=[RepSpec(foot_reaches_ball=False)]))
+        reps, _ = self.run_scenario(Scenario(reps=[RepSpec(player_offset=-1.0)]))
         self.assertEqual(reps, [])
 
     def test_slow_roll_is_not_a_shot(self):
@@ -151,9 +222,13 @@ class TestSynthetic(ContractMixin, unittest.TestCase):
         sc = Scenario(reps=[RepSpec(ball_speed_hs=1.5)])
         reps, truths = self.run_scenario(sc, RepsConfig(jump_speed=1.0))
         self.assertEqual(len(reps), 1)
-        # the foot stops ~0.33 H short of the ball: rejected by default, accepted with a loose threshold
-        reps, _ = self.run_scenario(Scenario(reps=[RepSpec(foot_reaches_ball=False)]), RepsConfig(ankle_ball_max_dist=0.5))
+        # the player stands ~1 H from the ball: rejected by default, accepted with loose touch thresholds
+        loose = RepsConfig(foot_ball_max_gap=2.0, ankle_ball_max_gap=2.0)
+        reps, _ = self.run_scenario(Scenario(reps=[RepSpec(player_offset=-1.0)]), loose)
         self.assertEqual(len(reps), 1)
+        # and a touch threshold tighter than the real strike gap rejects a genuine shot
+        reps, _ = self.run_scenario(Scenario(toe_conf=0.3), RepsConfig(ankle_ball_max_gap=0.02))
+        self.assertEqual(reps, [])
 
     def test_strong_foot_only_breaks_ties(self):
         pose, ball, truths = generate(Scenario(reps=[RepSpec("left")]))
@@ -177,9 +252,9 @@ class TestConfigAndCli(unittest.TestCase):
     def test_yaml_override_and_unknown_key(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "cfg.yaml"
-            p.write_text("jump_speed: 5.5\nankle_ball_max_dist: 0.1\n")
+            p.write_text("jump_speed: 5.5\nfoot_ball_max_gap: 0.1\n")
             cfg = RepsConfig.from_yaml(p)
-            self.assertEqual((cfg.jump_speed, cfg.ankle_ball_max_dist), (5.5, 0.1))
+            self.assertEqual((cfg.jump_speed, cfg.foot_ball_max_gap), (5.5, 0.1))
             p.write_text("jump_sped: 5.5\n")
             with self.assertRaises(ValueError):
                 RepsConfig.from_yaml(p)
