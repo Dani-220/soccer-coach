@@ -27,13 +27,24 @@ def deviation_color(d, max_dev):
     return tuple(int(v) for v in c)
 
 
+def confident(conf, min_conf):
+    """Joints confident enough to draw. conf 0 (frame with no player) never is, whatever min_conf."""
+    conf = np.asarray(conf)
+    return (conf >= min_conf) & (conf > 0)
+
+
+def on_screen(px, shape):
+    H, W = shape[:2]
+    return (px[:, 0] >= 0) & (px[:, 0] < W) & (px[:, 1] >= 0) & (px[:, 1] < H)
+
+
 def _point(px, conf, name, min_conf):
     """Pixel position + visibility of a joint; 'neck' is the shoulder midpoint."""
     if name == "neck":
         a, b = IDX["left_shoulder"], IDX["right_shoulder"]
-        return (px[a] + px[b]) / 2, min(conf[a], conf[b]) >= min_conf
+        return (px[a] + px[b]) / 2, bool(confident(min(conf[a], conf[b]), min_conf))
     j = IDX[name]
-    return px[j], conf[j] >= min_conf
+    return px[j], bool(confident(conf[j], min_conf))
 
 
 def _ip(p):
@@ -49,7 +60,7 @@ def draw_ghost(img, px, conf, scale, min_conf, alpha=0.35):
         if va and vb:
             cv2.line(layer, _ip(pa), _ip(pb), GHOST_BGR, th, cv2.LINE_AA)
     for j in range(len(CORE)):
-        if conf[j] >= min_conf:
+        if confident(conf[j], min_conf):
             cv2.circle(layer, _ip(px[j]), th, GHOST_BGR, -1, cv2.LINE_AA)
     cv2.addWeighted(layer, alpha, img, 1 - alpha, 0, dst=img)
 
@@ -67,7 +78,7 @@ def draw_new(img, px, conf, dev, scale, min_conf, max_dev):
             cv2.line(img, _ip(pa), _ip(pb), (20, 20, 20), th + 2, cv2.LINE_AA)
             cv2.line(img, _ip(pa), _ip(pb), col, th, cv2.LINE_AA)
     for j in range(len(CORE)):
-        if conf[j] >= min_conf:
+        if confident(conf[j], min_conf):
             cv2.circle(img, _ip(px[j]), r + 1, (20, 20, 20), -1, cv2.LINE_AA)
             cv2.circle(img, _ip(px[j]), r, deviation_color(dev[j], max_dev), -1, cv2.LINE_AA)
 

@@ -9,7 +9,8 @@ import pytest
 
 from pipeline.overlay.__main__ import main
 from pipeline.overlay.align import align, dtw, frame_cost
-from pipeline.overlay.overlay import compare, contact_summary
+from pipeline.overlay import render
+from pipeline.overlay.overlay import Canvas, compare, contact_summary, draw
 from pipeline.overlay.skeleton import IDX, load_rep
 
 EX = Path(__file__).resolve().parents[3] / "contract" / "examples"
@@ -86,6 +87,39 @@ def test_bad_rep_deviates_most_at_kicking_foot(data):
     assert c.swapped  # right-foot ghost relabeled to match the left-foot rep
     names = [n for n, _ in contact_summary(c)]
     assert len(names) == 3 and names[0].startswith("left_")
+
+
+def _labeled_at_contact(cmp, monkeypatch, size=(960, 960)):
+    """Joints draw() labels on the contact frame of a plain canvas."""
+    got = []
+    real = render.draw_labels
+    monkeypatch.setattr(render, "draw_labels",
+                        lambda img, px, dev, joints, *a: (got.extend(joints), real(img, px, dev, joints, *a)))
+    draw(Canvas(cmp, "plain", size=size), cmp.new.contact, 0.5)
+    return [render.CORE[j] for j in got]
+
+
+def test_low_confidence_joint_is_not_labeled(data, monkeypatch):
+    new = load_rep(*data, "r002")
+    new.conf[new.contact, IDX["left_foot_index"]] = 0.1      # most deviant joint at contact
+    labeled = _labeled_at_contact(compare(new, load_rep(*data, "r001")), monkeypatch)
+    assert len(labeled) == 3 and "left_foot_index" not in labeled
+
+
+def test_off_screen_joint_is_not_labeled(data, monkeypatch):
+    new = load_rep(*data, "r002")
+    new.norm[new.contact, IDX["left_foot_index"]] = (40.0, 1.5)  # far past the canvas edge, still confident
+    labeled = _labeled_at_contact(compare(new, load_rep(*data, "r001")), monkeypatch)
+    assert len(labeled) == 3 and "left_foot_index" not in labeled
+
+
+def test_min_conf_zero_never_labels_frames_without_player(data):
+    pose, reps = copy.deepcopy(data[0]), data[1]
+    for fr in pose["frames"][300:305]:                        # inside r002 (228..371)
+        fr["keypoints"] = {}
+    c = compare(load_rep(pose, reps, "r002"), load_rep(*data, "r001"), min_conf=0.0)
+    assert c.top_joints(300 - 228) == []
+    assert not render.confident(c.new.conf[300 - 228], 0.0).any()
 
 
 def _frames(p):

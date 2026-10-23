@@ -21,8 +21,14 @@ class Comparison:
     dev: np.ndarray         # (T, J) joint distance new vs ghost, torso lengths
     min_conf: float
 
-    def top_joints(self, i, k=3):
-        ok = (self.new.conf[i] >= self.min_conf) & (self.ghost_conf[i] >= self.min_conf)
+    def top_joints(self, i, k=3, shown=None):
+        """The k most deviant joints in new frame i that are confident in both reps.
+
+        `shown` (J,) bool further restricts to joints actually drawn, e.g. inside the image.
+        """
+        ok = render.confident(self.new.conf[i], self.min_conf) & render.confident(self.ghost_conf[i], self.min_conf)
+        if shown is not None:
+            ok &= shown
         order = [j for j in np.argsort(-self.dev[i]) if ok[j]]
         return order[:k]
 
@@ -86,7 +92,8 @@ def draw(canvas, i, max_dev):
     fs = 0.7 * canvas.H / 1080 if canvas.background == "video" else 0.6 * canvas.H / 960
     render.draw_ghost(img, ghost_px, c.ghost_conf[i], scale, c.min_conf)
     render.draw_new(img, new_px, new.conf[i], c.dev[i], scale, c.min_conf, max_dev)
-    render.draw_labels(img, new_px, c.dev[i], c.top_joints(i), hip_px, fs, max_dev)
+    labeled = c.top_joints(i, shown=render.on_screen(new_px, img.shape))
+    render.draw_labels(img, new_px, c.dev[i], labeled, hip_px, fs, max_dev)
     j = c.old_idx[i]
     when = "CONTACT" if i == new.contact else f"{(i - new.contact) / new.fps:+.3f} s from contact"
     lines = [
