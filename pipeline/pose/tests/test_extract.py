@@ -56,7 +56,7 @@ class FakeBall:
         if self.f in NO_BALL:
             return []
         if self.f == 5:
-            return [(10, 10, 4, 0.3), (200, 200, 6, 0.9)]
+            return [(300, 20, 4, 0.95), (155.0, 200.0, 5.0, 0.4)]  # far, confident decoy + the tracked ball
         return [(150.0 + self.f, 200.0, 5.0, 0.7)]
 
     def close(self):
@@ -100,7 +100,7 @@ def test_missing_player_is_empty_and_present_player_has_all_core_points(docs):
 def test_missing_ball_is_null_never_interpolated(docs):
     for fr in docs[1]["frames"]:
         assert (fr["ball"] is None) == (fr["f"] in NO_BALL)
-    assert docs[1]["frames"][5]["ball"] == [200, 200, 6, 0.9]  # highest confidence wins
+    assert docs[1]["frames"][5]["ball"] == [155, 200, 5, 0.4]  # the tracked ball, not the most confident
 
 
 def test_filter_resets_after_gap(docs):

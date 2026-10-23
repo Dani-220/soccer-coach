@@ -3,9 +3,10 @@ from pathlib import Path
 
 import cv2
 
+from .ball_tracker import BallTracker, feet_points
 from .debug import DebugWriter
 from .one_euro import KeypointSmoother
-from .tracking import PlayerTracker, pick_ball
+from .tracking import PlayerTracker
 
 SCHEMA_VERSION = "1.0"
 PLAYER_TRACK_ID = 1
@@ -31,9 +32,12 @@ def _fps_value(fps):
     return int(fps) if fps.is_integer() else fps
 
 
-def extract(video_path, pose_detector, ball_detector, *, smoother=None, tracker=None,
-            debug_path=None, fps_override=None, progress=None):
-    """Runs both detectors on every decoded frame and returns (pose_doc, ball_doc)."""
+def extract(video_path, pose_detector, ball_detector, *, smoother=None, tracker=None, ball_opts=None,
+            redetect=True, debug_path=None, fps_override=None, progress=None):
+    """Runs both detectors on every decoded frame and returns (pose_doc, ball_doc).
+
+    ball_opts: keyword arguments for BallTracker. redetect: when the tracked ball is missed, run
+    ball_detector.detect_crop around its predicted position (if the detector has it)."""
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise IOError(f"cannot open video: {video_path}")
@@ -43,6 +47,8 @@ def extract(video_path, pose_detector, ball_detector, *, smoother=None, tracker=
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or None
     smoother = smoother or KeypointSmoother()
     tracker = tracker or PlayerTracker()
+    ball_tracker = BallTracker(fps, **(ball_opts or {}))
+    crop_detect = getattr(ball_detector, "detect_crop", None) if redetect else None
 
     pose_frames, ball_frames = [], []
     width = height = None
@@ -70,12 +76,13 @@ def extract(video_path, pose_detector, ball_detector, *, smoother=None, tracker=
                 if new_track:
                     smoother.reset()
                 keypoints = smoother(player, f / fps)
-            ball = pick_ball(ball_detector.detect(frame))
+            redetect_fn = (lambda cx, cy, side: crop_detect(frame, cx, cy, side)) if crop_detect else None
+            ball = ball_tracker.step(ball_detector.detect(frame), feet_points(player or {}), redetect_fn)
 
             pose_frames.append({"f": f, "keypoints": _kp_out(keypoints)})
             ball_frames.append({"f": f, "ball": _ball_out(ball)})
             if debug:
-                debug.write(frame, f, keypoints, ball)
+                debug.write(frame, f, keypoints, ball, ball_tracker.last_gate)
             f += 1
             if progress:
                 progress(f, total)

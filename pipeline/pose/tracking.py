@@ -1,4 +1,4 @@
-"""Pick one player and one ball per frame from the detector candidates. Never fabricates a detection."""
+"""Pick one player per frame from the pose candidates. Never fabricates a detection. (Ball: ball_tracker.py.)"""
 import math
 
 from .keypoints import CORE_NAMES
@@ -55,7 +55,3 @@ class PlayerTracker:
 def _area(b):
     return (b[2] - b[0]) * (b[3] - b[1])
 
-
-def pick_ball(candidates):
-    """Highest-confidence ball, or None. No smoothing, no interpolation (contract: downstream's job)."""
-    return max(candidates, key=lambda b: b[3], default=None)

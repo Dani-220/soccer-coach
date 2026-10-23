@@ -84,8 +84,16 @@ class MediaPipePoseDetector:
         self._landmarker.close()
 
 
+def crop_window(cx, cy, side, width, height):
+    """Square window of `side` px centred on (cx, cy), shifted to stay inside the frame. Returns x0, y0, side."""
+    side = int(round(min(side, width, height)))
+    x0 = int(round(min(max(cx - side / 2, 0), width - side)))
+    y0 = int(round(min(max(cy - side / 2, 0), height - side)))
+    return x0, y0, side
+
+
 class YoloBallDetector:
-    def __init__(self, model="yolo11m.pt", conf=0.25, imgsz=1280, device=None):
+    def __init__(self, model="yolo11m.pt", conf=0.1, imgsz=1280, device=None):
         from ultralytics import YOLO
 
         self._model = YOLO(str(resolve_ball_model(model)))
@@ -93,16 +101,32 @@ class YoloBallDetector:
         self._cls = next((i for i, n in names.items() if n == "sports ball"), None)
         if self._cls is None:
             raise ValueError(f"model {model} has no 'sports ball' class (classes: {list(names.values())[:10]}...)")
+        self._imgsz = imgsz
         self._kw = dict(conf=conf, imgsz=imgsz, classes=[self._cls], verbose=False)
         if device:
             self._kw["device"] = device
 
+    def _predict(self, img):
+        boxes = self._model.predict(img, **self._kw)[0].boxes
+        return [((x1 + x2) / 2, (y1 + y2) / 2, ((x2 - x1) + (y2 - y1)) / 4, float(c))
+                for (x1, y1, x2, y2), c in zip(boxes.xyxy.tolist(), boxes.conf.tolist())]
+
     def detect(self, frame_bgr):
-        boxes = self._model.predict(frame_bgr, **self._kw)[0].boxes
-        out = []
-        for (x1, y1, x2, y2), c in zip(boxes.xyxy.tolist(), boxes.conf.tolist()):
-            out.append(((x1 + x2) / 2, (y1 + y2) / 2, ((x2 - x1) + (y2 - y1)) / 4, float(c)))
-        return out
+        return self._predict(frame_bgr)
+
+    def detect_crop(self, frame_bgr, cx, cy, side):
+        """Re-runs YOLO on a window around (cx, cy), upscaled to the model input size, so a small or
+        blurred ball covers more pixels. Hits are mapped back to full-frame pixels."""
+        import cv2
+
+        h, w = frame_bgr.shape[:2]
+        x0, y0, side = crop_window(cx, cy, side, w, h)
+        if side < 2:
+            return []
+        crop = cv2.resize(frame_bgr[y0:y0 + side, x0:x0 + side], (self._imgsz, self._imgsz),
+                          interpolation=cv2.INTER_CUBIC)
+        k = side / self._imgsz
+        return [(x0 + x * k, y0 + y * k, r * k, c) for x, y, r, c in self._predict(crop)]
 
     def close(self):
         pass

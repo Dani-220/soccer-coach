@@ -49,8 +49,14 @@ def parse_args(argv=None):
 
     g = ap.add_argument_group("ball (Ultralytics YOLO)")
     g.add_argument("--ball-model", default="yolo11m.pt", help="YOLO weights with a 'sports ball' class (default: yolo11m.pt)")
-    g.add_argument("--ball-conf", type=float, default=0.25, help="minimum ball confidence (default: 0.25)")
+    g.add_argument("--ball-conf", type=float, default=0.1,
+                   help="minimum ball confidence (default: 0.1; the tracker's gate rejects stray detections)")
     g.add_argument("--ball-imgsz", type=int, default=1280, help="YOLO inference size; larger finds smaller balls")
+    g.add_argument("--ball-max-missing", type=float, default=0.5, help="seconds without a hit before the ball track is dropped")
+    g.add_argument("--ball-kick-speed", type=float, default=120.0,
+                   help="fastest launch the gate allows for, in ball radii per second (120 r/s is about 13 m/s)")
+    g.add_argument("--no-ball-redetect", action="store_true",
+                   help="don't re-run YOLO on an upscaled crop around the predicted ball when it is missed")
     g.add_argument("--device", help="torch device for YOLO, e.g. cpu, mps, cuda:0 (default: auto)")
     return ap.parse_args(argv)
 
@@ -87,6 +93,8 @@ def main(argv=None):
     try:
         pose_doc, ball_doc = extract(a.video, pose_det, ball_det, smoother=smoother,
                                      tracker=PlayerTracker(max_jump=a.max_jump),
+                                     ball_opts=dict(max_missing_s=a.ball_max_missing, kick_speed=a.ball_kick_speed),
+                                     redetect=not a.no_ball_redetect,
                                      debug_path=debug_out, fps_override=a.fps, progress=_progress)
     finally:
         pose_det.close()
