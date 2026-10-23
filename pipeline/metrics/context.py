@@ -13,6 +13,8 @@ BODY_HEIGHT_FRAMES = 30
 # Shoulder-width / torso-length ratio above which the camera is treated as facing the player.
 # Side-on this ratio is ~0.05 (both shoulders overlap); facing the camera it is ~0.8.
 FRONT_VIEW_WIDTH_RATIO = 0.35
+# Keypoints below this confidence are treated as missing: a metric that needs one is not_measured.
+MIN_CONFIDENCE = 0.3
 
 
 def _parse_frames(pose):
@@ -32,42 +34,60 @@ def _parse_balls(ball, n):
     return out
 
 
+def xy(kp, name):
+    """(x, y) of keypoint `name`, or None if it is absent or its confidence is below MIN_CONFIDENCE."""
+    p = kp.get(name)
+    if p is None or p[2] < MIN_CONFIDENCE:
+        return None
+    return p[:2]
+
+
+def midpoint(kp, a, b):
+    """Midpoint of keypoints a and b, or None if either is missing (see xy)."""
+    pa, pb = xy(kp, a), xy(kp, b)
+    return None if pa is None or pb is None else (pa + pb) / 2
+
+
+def hip_mid(kp):
+    return midpoint(kp, "left_hip", "right_hip")
+
+
+def shoulder_mid(kp):
+    return midpoint(kp, "left_shoulder", "right_shoulder")
+
+
 def body_height_px(frames):
     """Body height H in pixels, as defined in CONTRACT.md.
 
-    H = median over the first 30 frames that contain a player of
+    H = median over the first 30 usable frames of
         max(left_ankle.y, right_ankle.y) - nose.y
-    (vertical distance from the nose to the lower ankle; y grows downward).
-    Returns None if no frame contains a player.
+    (vertical distance from the nose to the lower ankle; y grows downward). A frame is usable when
+    it has a player and the nose and both ankles are at or above MIN_CONFIDENCE. Both ankles are
+    required, because with one of them missing there is no way to tell which ankle is lower.
+    Returns None if no frame is usable.
     """
     hs = []
     for kp in frames:
-        if kp:
-            hs.append(max(kp["left_ankle"][1], kp["right_ankle"][1]) - kp["nose"][1])
+        nose, la, ra = xy(kp, "nose"), xy(kp, "left_ankle"), xy(kp, "right_ankle")
+        if nose is not None and la is not None and ra is not None:
+            hs.append(max(la[1], ra[1]) - nose[1])
             if len(hs) == BODY_HEIGHT_FRAMES:
                 break
     return float(np.median(hs)) if hs else None
 
 
-def hip_mid(kp):
-    return (kp["left_hip"][:2] + kp["right_hip"][:2]) / 2
-
-
-def shoulder_mid(kp):
-    return (kp["left_shoulder"][:2] + kp["right_shoulder"][:2]) / 2
-
-
 def travel_direction(frames, start, end):
     """+1 if the player moves toward +x during [start, end], -1 toward -x.
 
-    Sign of the least-squares slope of hip-midpoint x over the frames that contain a player.
+    Sign of the least-squares slope of hip-midpoint x over the frames where both hips are confident.
     Defaults to +1 when there are fewer than two such frames or the slope is exactly zero.
     """
     ts, xs = [], []
     for f in range(start, end + 1):
-        if frames[f]:
+        hm = hip_mid(frames[f])
+        if hm is not None:
             ts.append(f)
-            xs.append(hip_mid(frames[f])[0])
+            xs.append(hm[0])
     if len(ts) < 2:
         return 1
     slope = np.polyfit(ts, xs, 1)[0]
@@ -77,15 +97,17 @@ def travel_direction(frames, start, end):
 def camera_view(frames):
     """'side' or 'front', from how wide the shoulders look relative to the torso.
 
-    ratio = median over player frames of |left_shoulder.x - right_shoulder.x| / |shoulder_mid - hip_mid|
+    ratio = median over frames with confident shoulders and hips of
+            |left_shoulder.x - right_shoulder.x| / |shoulder_mid - hip_mid|
     Side-on, the shoulders overlap (ratio ~0.05); facing the camera they are about as wide as the
     torso is long (ratio ~0.8). 'front' when ratio > FRONT_VIEW_WIDTH_RATIO. Behind-the-player
     footage also counts as 'front' (same geometry, mirrored).
     """
     ratios = []
     for kp in frames:
-        if kp:
-            torso = np.linalg.norm(shoulder_mid(kp) - hip_mid(kp))
+        sh, hp = shoulder_mid(kp), hip_mid(kp)
+        if sh is not None and hp is not None:
+            torso = np.linalg.norm(sh - hp)
             if torso > 0:
                 ratios.append(abs(kp["left_shoulder"][0] - kp["right_shoulder"][0]) / torso)
     if not ratios:
@@ -117,11 +139,14 @@ class RepContext:
     def n_frames(self):
         return len(self.frames)
 
+    def keypoints(self, f):
+        """All keypoints at frame f ({} if f is outside the video or has no player)."""
+        return self.frames[f] if 0 <= f < len(self.frames) else {}
+
     def point(self, f, name):
-        """(x, y) of keypoint `name` at frame f, or None if no player was detected there."""
-        if not 0 <= f < len(self.frames) or not self.frames[f]:
-            return None
-        return self.frames[f][name][:2]
+        """(x, y) of keypoint `name` at frame f, or None if there is no player there or the
+        point's confidence is below MIN_CONFIDENCE."""
+        return xy(self.keypoints(f), name)
 
     def ball_at_rest(self, f, window_s=0.05):
         """Ball (x, y) at frame f (at or before contact), robust to dropouts and occlusion.

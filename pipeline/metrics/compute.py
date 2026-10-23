@@ -1,4 +1,5 @@
 """Build metrics.json from pose.json, ball.json, reps.json (+ player.json) and targets.yaml."""
+import math
 import sys
 from pathlib import Path
 
@@ -22,9 +23,10 @@ def round_value(value, unit):
 
 
 def metric_entry(name, value, frame, target_cfg, view):
-    """One metrics.json entry. Metrics whose `views` exclude this camera view are not_measured."""
+    """One metrics.json entry. Metrics whose `views` exclude this camera view are not_measured,
+    and so is a non-finite value (NaN or inf can't go into JSON, and would mean a bad measurement)."""
     unit, rng = target_cfg["unit"], [target_cfg["range"][0], target_cfg["range"][1]]
-    if value is None or view not in target_cfg.get("views", ["side", "front"]):
+    if value is None or not math.isfinite(value) or view not in target_cfg.get("views", ["side", "front"]):
         return {"name": name, "value": None, "unit": unit, "target": rng, "status": "not_measured", "frame": int(frame)}
     v = round_value(value, unit)
     status = "in_range" if rng[0] <= v <= rng[1] else "out_of_range"

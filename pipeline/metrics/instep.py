@@ -1,6 +1,7 @@
 """Instep-shot metrics. One function per metric; each returns (value, frame).
 
-`value` is None when the inputs needed for it are missing (no player or no ball where it is needed).
+`value` is None when the inputs needed for it are missing: no player or no ball where it is needed,
+or a needed keypoint below MIN_CONFIDENCE (context.py), which counts as missing.
 Whether a metric is measurable from the camera view at all is decided by `views` in targets.yaml,
 not here. Notation used in the docstrings:
 
@@ -14,7 +15,7 @@ import math
 
 import numpy as np
 
-from .context import hip_mid, shoulder_mid
+from .context import hip_mid, shoulder_mid, xy
 
 # Anthropometric ratio (Drillis & Contini): foot length ~0.152 of stature, hip-to-shoulder ~0.288,
 # so foot length ~0.53 x torso length. Used to undo foreshortening of the foot in front view.
@@ -22,12 +23,20 @@ FOOT_TO_TORSO = 0.53
 BALL_SPEED_FIT_S = 0.10     # seconds of ball flight used to fit launch velocity
 BALL_SPEED_FRAME_OFFSET = 3  # report ball_speed at C + 3, where the ball is clear of the foot
 ANKLE_WINDOW_S = 0.02       # half-width of the averaging window for ankle_lock
+MIN_SEGMENT_PX = 1.0        # points closer than this have no usable direction between them
 
 
 def _angle_at(a, b, c):
-    """Interior angle ABC in degrees."""
+    """Interior angle ABC in degrees, or None when A or C is within MIN_SEGMENT_PX of B.
+
+    A zero-length side has no direction, so the angle is undefined (and dividing by its
+    length would give NaN).
+    """
     v1, v2 = a - b, c - b
-    cos = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+    n1, n2 = np.linalg.norm(v1), np.linalg.norm(v2)
+    if n1 < MIN_SEGMENT_PX or n2 < MIN_SEGMENT_PX:
+        return None
+    cos = np.dot(v1, v2) / (n1 * n2)
     return math.degrees(math.acos(float(np.clip(cos, -1.0, 1.0))))
 
 
@@ -62,15 +71,17 @@ def plant_foot_angle(ctx):
     the player comes closer to the camera. Frame: P.
     """
     f = ctx.plant
-    kp = ctx.frames[f] if 0 <= f < ctx.n_frames else {}
-    if not kp:
-        return None, f
-    L = FOOT_TO_TORSO * np.linalg.norm(shoulder_mid(kp) - hip_mid(kp))
-    if L <= 0:
-        return None, f
+    kp = ctx.keypoints(f)
     s, k = ctx.support, ctx.foot
-    out = 1.0 if kp[f"{s}_hip"][0] >= kp[f"{k}_hip"][0] else -1.0
-    dx = out * (kp[f"{s}_foot_index"][0] - kp[f"{s}_heel"][0])
+    sh = shoulder_mid(kp)
+    s_hip, k_hip, heel, toe = (xy(kp, n) for n in (f"{s}_hip", f"{k}_hip", f"{s}_heel", f"{s}_foot_index"))
+    if sh is None or s_hip is None or k_hip is None or heel is None or toe is None:
+        return None, f
+    L = FOOT_TO_TORSO * np.linalg.norm(sh - (s_hip + k_hip) / 2)
+    if L < MIN_SEGMENT_PX:
+        return None, f
+    out = 1.0 if s_hip[0] >= k_hip[0] else -1.0
+    dx = out * (toe[0] - heel[0])
     return math.degrees(math.asin(float(np.clip(dx / L, -1.0, 1.0)))), f
 
 
@@ -100,10 +111,10 @@ def trunk_lean(ctx):
     Frame: C.
     """
     f = ctx.contact
-    kp = ctx.frames[f] if 0 <= f < ctx.n_frames else {}
-    if not kp:
-        return None, f
+    kp = ctx.keypoints(f)
     sh, hp = shoulder_mid(kp), hip_mid(kp)
+    if sh is None or hp is None:
+        return None, f
     return math.degrees(math.atan2(ctx.direction * (sh[0] - hp[0]), hp[1] - sh[1])), f
 
 
@@ -113,13 +124,14 @@ def backswing_frame(ctx):
         backswing = argmin over f in [start, C] of (K_ankle.y@f - hip_mid.y@f)
 
     This works side-on and from the front, because the heel lifts toward the hips in both.
-    Falls back to P when no frame in the window contains a player.
+    Frames where the kicking ankle or either hip is below MIN_CONFIDENCE are skipped. Falls back
+    to P when no frame in the window qualifies.
     """
     best, best_f = None, ctx.plant
     for f in range(ctx.start, ctx.contact + 1):
-        kp = ctx.frames[f]
-        if kp:
-            d = kp[f"{ctx.foot}_ankle"][1] - hip_mid(kp)[1]
+        ankle, hp = ctx.point(f, f"{ctx.foot}_ankle"), hip_mid(ctx.keypoints(f))
+        if ankle is not None and hp is not None:
+            d = ankle[1] - hp[1]
             if best is None or d < best:
                 best, best_f = d, f
     return best_f
@@ -143,15 +155,17 @@ def hip_shoulder_separation(ctx):
     B = backswing_frame(ctx)
 
     def ratios(f):
-        kp = ctx.frames[f]
-        torso = np.linalg.norm(shoulder_mid(kp) - hip_mid(kp))
-        if torso <= 0:
+        kp = ctx.keypoints(f)
+        pts = [xy(kp, n) for n in ("left_hip", "right_hip", "left_shoulder", "right_shoulder")]
+        if any(p is None for p in pts):
             return None
-        return (abs(kp["left_hip"][0] - kp["right_hip"][0]) / torso,
-                abs(kp["left_shoulder"][0] - kp["right_shoulder"][0]) / torso)
+        lh, rh, ls, rsh = pts
+        torso = np.linalg.norm((ls + rsh) / 2 - (lh + rh) / 2)
+        if torso < MIN_SEGMENT_PX:
+            return None
+        return abs(lh[0] - rh[0]) / torso, abs(ls[0] - rsh[0]) / torso
 
-    rs = {f: ratios(f) for f in range(ctx.start, ctx.contact + 1) if ctx.frames[f]}
-    rs = {f: r for f, r in rs.items() if r is not None}
+    rs = {f: r for f in range(ctx.start, ctx.contact + 1) if (r := ratios(f)) is not None}
     if B not in rs:
         return None, B
     max_hip = max(r[0] for r in rs.values())
@@ -173,15 +187,18 @@ def ankle_lock(ctx):
     A locked, pointed instep is near 150-180; a loose or flexed ankle is smaller. Foot keypoints
     are the noisiest joints and sit only a few pixels apart, so one frame can be several degrees
     off. The ankle is held still through the strike, so averaging over a short window centred
-    on contact cuts the noise without blurring the motion. Frame: C.
+    on contact cuts the noise without blurring the motion. Frames where any of the three points is
+    below MIN_CONFIDENCE, or the angle is undefined, are left out of the mean. Frame: C.
     """
     C, k = ctx.contact, ctx.foot
     w = max(1, round(ANKLE_WINDOW_S * ctx.fps))
     angles = []
     for f in range(max(ctx.start, C - w), min(ctx.end, C + w) + 1):
         knee, ankle, toe = (ctx.point(f, f"{k}_{j}") for j in ("knee", "ankle", "foot_index"))
-        if knee is not None:
-            angles.append(_angle_at(knee, ankle, toe))
+        if knee is not None and ankle is not None and toe is not None:
+            a = _angle_at(knee, ankle, toe)
+            if a is not None:
+                angles.append(a)
     return (float(np.mean(angles)) if angles else None), C
 
 

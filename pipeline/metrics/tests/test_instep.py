@@ -1,10 +1,11 @@
 """Each metric on a synthetic skeleton whose correct answer is known exactly."""
 import math
 
+import numpy as np
 import pytest
 
 from pipeline.metrics import instep
-from pipeline.metrics.context import RepContext, Video
+from pipeline.metrics.context import MIN_CONFIDENCE, RepContext, Video
 from pipeline.metrics.tests.synth import ANKLE_Y, CONTACT, END, FPS, H, HIP_Y, PLANT, Clip, rep
 
 BALL_X, BALL_Y = 1000.0, 880.0
@@ -228,6 +229,97 @@ def test_metrics_return_none_when_player_missing_at_key_frame():
         assert fn(ctx)[0] is None
     clip.hide_player(PLANT)
     assert instep.plant_foot_distance(ctx_for(clip))[0] is None
+    assert instep.plant_foot_angle(ctx_for(clip))[0] is None
+
+
+# --- keypoint confidence ---------------------------------------------------------------------
+
+LOW = MIN_CONFIDENCE - 0.05
+
+
+@pytest.mark.parametrize("fn, view, frame, point", [
+    (instep.plant_foot_distance, "side", PLANT, "left_ankle"),
+    (instep.knee_over_ball, "side", CONTACT, "right_knee"),
+    (instep.trunk_lean, "side", CONTACT, "left_shoulder"),
+    (instep.trunk_lean, "side", CONTACT, "right_hip"),
+    (instep.follow_through, "side", CONTACT, "right_ankle"),
+    (instep.follow_through, "side", END, "right_ankle"),
+    (instep.plant_foot_angle, "front", PLANT, "left_heel"),
+    (instep.plant_foot_angle, "front", PLANT, "left_foot_index"),
+    (instep.plant_foot_angle, "front", PLANT, "right_hip"),
+    (instep.plant_foot_angle, "front", PLANT, "left_shoulder"),
+])
+def test_low_confidence_point_counts_as_missing(fn, view, frame, point):
+    clip = Clip(view=view, speed=0 if view == "front" else 4.0)
+    resting_ball(clip)
+    assert fn(ctx_for(clip))[0] is not None                 # measurable when the point is confident
+    clip.set_conf(frame, point, LOW)
+    assert fn(ctx_for(clip))[0] is None
+
+
+def test_confidence_at_threshold_is_kept():
+    clip = Clip()
+    resting_ball(clip)
+    clip.set(PLANT, "left_ankle", x=BALL_X - 60)
+    clip.set_conf(PLANT, "left_ankle", MIN_CONFIDENCE)
+    assert instep.plant_foot_distance(ctx_for(clip))[0] == pytest.approx(60 / H)
+
+
+def test_ankle_lock_skips_low_confidence_frames():
+    clip = Clip()
+    for f in range(CONTACT - 3, CONTACT + 4):
+        set_ankle_angle(clip, f, 150.0)
+    set_ankle_angle(clip, CONTACT, 60.0)                     # a bad detection...
+    clip.set_conf(CONTACT, "right_foot_index", LOW)         # ...that the detector flagged
+    assert instep.ankle_lock(ctx_for(clip))[0] == pytest.approx(150.0)
+    for f in range(CONTACT - 3, CONTACT + 4):
+        clip.set_conf(f, "right_foot_index", LOW)
+    assert instep.ankle_lock(ctx_for(clip))[0] is None
+
+
+def test_backswing_frame_skips_low_confidence_ankle():
+    clip = Clip()
+    clip.set(15, "right_ankle", y=HIP_Y + 100)
+    clip.set_conf(15, "right_ankle", LOW)
+    clip.set(17, "right_ankle", y=HIP_Y + 200)
+    assert instep.backswing_frame(ctx_for(clip)) == 17
+
+
+def test_hip_shoulder_separation_ignores_low_confidence_hips():
+    clip = Clip(view="front", speed=0)
+    clip.set(15, "right_ankle", y=HIP_Y + 150)
+    clip.set(10, "left_hip", x=clip.get(10, "left_hip")[0] + 400)   # absurdly wide, but flagged
+    clip.set_conf(10, "left_hip", LOW)
+    # Without the confidence check, frame 10 would set the "square-on" hip width and give ~ +80 deg.
+    assert instep.hip_shoulder_separation(ctx_for(clip)) == (pytest.approx(0.0), 15)
+    for f in range(len(clip.kps)):
+        clip.set_conf(f, "left_hip", LOW)
+    assert instep.hip_shoulder_separation(ctx_for(clip))[0] is None
+
+
+# --- degenerate geometry ---------------------------------------------------------------------
+
+def test_angle_at_zero_length_side_is_none():
+    a, b = np.array([0.0, 0.0]), np.array([10.0, 0.0])
+    assert instep._angle_at(a, a, b) is None                # A coincides with B
+    assert instep._angle_at(b, a, a) is None                # C coincides with B
+    assert instep._angle_at(a + 0.5, a, b) is None          # under MIN_SEGMENT_PX
+    assert instep._angle_at(b, a, np.array([0.0, 10.0])) == pytest.approx(90.0)
+
+
+def test_ankle_lock_coincident_toe_and_ankle_is_none_not_nan():
+    clip = Clip()
+    for f in range(CONTACT - 3, CONTACT + 4):
+        clip.set(f, "right_foot_index", *clip.get(f, "right_ankle"))
+    assert instep.ankle_lock(ctx_for(clip))[0] is None
+    set_ankle_angle(clip, CONTACT, 140.0)                   # one usable frame is enough
+    assert instep.ankle_lock(ctx_for(clip))[0] == pytest.approx(140.0)
+
+
+def test_plant_foot_angle_none_when_torso_collapses():
+    clip = Clip(view="front", speed=0)
+    for side in ("left", "right"):
+        clip.set(PLANT, f"{side}_shoulder", y=HIP_Y)        # shoulders on the hip line: no length scale
     assert instep.plant_foot_angle(ctx_for(clip))[0] is None
 
 

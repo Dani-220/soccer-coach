@@ -26,6 +26,26 @@ def test_body_height_median_of_first_30_player_frames():
     assert body_height_px(frames_of(clip)) == pytest.approx(H)
 
 
+def test_body_height_skips_frames_with_low_confidence_nose_or_ankle():
+    clip = Clip(n=60)
+    for f in range(20):
+        clip.set(f, "nose", y=NOSE_Y - 300)                 # wrong, and flagged as unreliable
+        clip.set_conf(f, "nose", 0.1)
+    for f in range(20, 40):
+        clip.set(f, "right_ankle", y=ANKLE_Y + 300)
+        clip.set_conf(f, "right_ankle", 0.1)
+    assert body_height_px(frames_of(clip)) == pytest.approx(H)
+
+
+def test_travel_direction_ignores_low_confidence_hips():
+    clip = Clip(direction=1)
+    for f in range(13, 26):
+        for side in ("left", "right"):
+            clip.set(f, f"{side}_hip", x=0.0)                # would drag the slope negative
+            clip.set_conf(f, f"{side}_hip", 0.1)
+    assert travel_direction(frames_of(clip), 0, 25) == 1
+
+
 def test_body_height_none_without_player():
     clip = Clip(n=3)
     for f in range(3):

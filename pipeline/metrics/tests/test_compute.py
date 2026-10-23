@@ -112,6 +112,25 @@ def test_player_missing_at_contact_still_valid(validator):
     check_contract(validator, out)
     assert by_name(out["reps"][0])["trunk_lean"]["status"] == "not_measured"
 
+def test_no_confident_foot_points_gives_not_measured_plant_foot_angle(validator):
+    """Regression: low-confidence foot points used to give plant_foot_angle = 0, 'in_range'."""
+    clip = synthetic_rep("front")
+    for f in range(len(clip.kps)):
+        for side in ("left", "right"):
+            for part in ("heel", "foot_index"):
+                clip.set_conf(f, f"{side}_{part}", 0.05)
+    out = compute_metrics(clip.pose(), clip.ball_doc(), reps_doc(rep()), PLAYER)
+    check_contract(validator, out)
+    m = by_name(out["reps"][0])["plant_foot_angle"]
+    assert (m["value"], m["status"]) == (None, "not_measured")
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf")])
+def test_non_finite_value_is_not_measured(bad):
+    cfg = {"range": [140, 180], "unit": "degrees", "views": ["side"]}
+    e = metric_entry("ankle_lock", bad, 5, cfg, "side")
+    assert (e["value"], e["status"]) == (None, "not_measured")
+
 
 # --- contract fixtures (side-on, noisy pose; truth measured on the noise-free skeleton) -------------
 

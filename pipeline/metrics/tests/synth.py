@@ -42,6 +42,9 @@ class Clip:
         p = self.kps[f][name]
         self.kps[f][name] = [p[0] if x is None else float(x), p[1] if y is None else float(y), p[2]]
 
+    def set_conf(self, f, name, conf):
+        self.kps[f][name][2] = float(conf)
+
     def get(self, f, name):
         return self.kps[f][name][:2]
 
