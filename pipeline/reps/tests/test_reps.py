@@ -10,7 +10,7 @@ from pathlib import Path
 
 from pipeline.reps import RepsConfig, detect_reps
 from pipeline.reps.__main__ import main as cli_main
-from pipeline.reps.detect import body_height, load_tracks
+from pipeline.reps.detect import body_height, find_contacts, load_tracks
 
 from .synthetic import BODY_H, RepSpec, Scenario, generate
 
@@ -150,6 +150,21 @@ class TestSynthetic(ContractMixin, unittest.TestCase):
                     for rep, truth in zip(reps, truths):
                         self.assertMatches(rep, truth, fps=fps, contact_tol=1, phase_tol=max(1, round(0.025 * fps)))
 
+    def test_five_frame_occlusion_at_30fps_is_bridged(self):
+        # ball hidden for frames contact-2 .. contact+2: bridged, so it's seen leaving (no vanish penalty)
+        sc = Scenario(reps=[RepSpec("left", hide_ball_at_contact=2)], fps=30, noise_px=1.0, seed=2)
+        pose, ball, truths = generate(sc)
+        hidden = [fr["f"] for fr in ball["frames"] if fr["ball"] is None and fr["f"] <= truths[0]["contact"] + 2]
+        self.assertEqual(hidden[-5:], list(range(truths[0]["contact"] - 2, truths[0]["contact"] + 3)))
+        cfg = RepsConfig()
+        tr = load_tracks(pose, ball, cfg)
+        contacts = find_contacts(tr, body_height(tr), cfg)
+        self.assertEqual(len(contacts), 1)
+        self.assertTrue(contacts[0].seen_leaving)
+        self.assertLessEqual(abs(contacts[0].frame - truths[0]["contact"]), 1)
+        reps, truths = self.run_scenario(sc)
+        self.assertMatches(reps[0], truths[0], fps=30, contact_tol=1, phase_tol=1)
+
     def test_ball_hidden_by_foot(self):
         reps, truths = self.run_scenario(Scenario(reps=[RepSpec("right", hide_ball_at_contact=2)], noise_px=1.0))
         self.assertEqual(len(reps), 1)
@@ -184,8 +199,9 @@ class TestSynthetic(ContractMixin, unittest.TestCase):
                         self.assertMatches(rep, truth, fps=fps, contact_tol=1, phase_tol=max(1, round(0.025 * fps)))
 
     def test_ball_briefly_lost_at_rest_is_not_a_shot(self):
-        # the foot swings through a ball that never moves; the detector drops it for 17 frames around then
-        reps, _ = self.run_scenario(Scenario(reps=[RepSpec(ball_speed_hs=0, hide_ball_at_contact=8)]))
+        # the foot swings through a ball that never moves; the detector drops it for 25 frames (0.21 s,
+        # longer than max_ball_gap_s, so this goes through the vanish check) and finds it back at rest
+        reps, _ = self.run_scenario(Scenario(reps=[RepSpec(ball_speed_hs=0, hide_ball_at_contact=12)]))
         self.assertEqual(reps, [])
 
     def test_ball_lost_while_player_stands_still_beside_it(self):

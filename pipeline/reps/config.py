@@ -24,7 +24,8 @@ class RepsConfig:
     min_rest_samples: int = 3           # visible ball detections needed inside that window
     rest_radius: float = 0.03           # H; all resting detections lie within this of their median
     jump_speed: float = 3.0             # H/s; ball speed after the jump must reach this
-    max_ball_gap_s: float = 0.1         # longest ball occlusion bridged around contact (foot hides it)
+    max_ball_gap_s: float = 0.17        # longest ball occlusion bridged around contact (foot hides it);
+                                        #    0.17 s bridges 5 hidden frames at 30 fps
     # A foot must touch the resting ball: gaps are measured to the ball's surface (ball.json radius).
     foot_ball_max_gap: float = 0.08     # H; ankle->toe segment to ball surface, when the toe is confident
     ankle_ball_max_gap: float = 0.15    # H; ankle to ball surface, when it isn't (the ball is struck
