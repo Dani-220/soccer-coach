@@ -7,3 +7,4 @@ __pycache__/
 *.avi
 *.zip
 .DS_Store
+out/
