@@ -1,8 +1,9 @@
-# Soccer Coach Pipeline Contract v1.0
+# Soccer Coach Pipeline Contract v1.1
 
 Paste this file into every parallel chat. It replaces the "Shared contract" section of the build plan.
 **Chats must not change this contract.** If a chat needs a new field or move, it asks the integrator,
-who bumps `schema_version`, updates `schemas/`, and pastes the change into every affected chat.
+who bumps the contract version (and `schema_version` only if a file format changes), updates `schemas/`
+and `tools/`, adds a Changelog row, and pastes the change into every affected chat.
 
 ## Pipeline
 
@@ -25,7 +26,7 @@ Formal JSON Schemas live in `schemas/`; `python tools/validate.py <folder>` chec
 | Keypoint value | `[x, y, confidence]`. Keep low-confidence points; never omit a core point. |
 | No player | `"keypoints": {}`. No ball: `"ball": null`. Never invent or interpolate in B's output. |
 | Feet | Always `"left"` or `"right"` in data. Strong/weak is derived from `player.json` at display time. |
-| Body height (H) | Vertical px from `nose` to the lower ankle, median over the first 30 frames with a player. All distances are divided by H (`unit: body_heights`). Convert to cm with `H_cm = height_cm × 0.93`. |
+| Body height (H) | **Per rep** (v1.1). Vertical px from `nose` to the lower ankle, median over the frames in [P − 0.3 s, P], where P = the rep's plant frame (contact if no plant). Only frames with a player and `nose`, `left_ankle`, `right_ankle` confidence ≥ 0.3 count. Fewer than 3 such frames: widen to [start, P]; still fewer: median over the whole video. **Use `contract/tools/body_height.py`; never reimplement it.** All distances are divided by H (`unit: body_heights`). Convert to cm with `H_cm = height_cm × 0.93`. |
 | Angles | Degrees. `trunk_lean`: shoulder-midpoint vs. hip-midpoint from vertical, **positive = leaning forward**. |
 | Facing | The player moves in +x (left to right) in fixture videos. Code must not assume this; detect direction from hip motion. |
 | Unmeasurable metrics | Metrics needing a front camera (`plant_foot_angle`, `hip_shoulder_separation`) are output with `value: null`, `status: "not_measured"` from side-on video. |
@@ -67,3 +68,10 @@ Frames 168 to 227 have no player (walking back). The ball is `null` at r002's co
 and after it leaves frame. Pose has ~1.8 px noise; feet have lower confidence, as in real detectors.
 `metrics.example.json` holds the **true** values measured on the noise-free skeleton, so Workstream D can
 test its computed metrics against them.
+
+## Changelog
+
+| Version | Date | Change | Who must update |
+| --- | --- | --- | --- |
+| 1.1 | 2026-10-22 | Body height H is computed **per rep** from the 0.3 s before the plant, with low-confidence frames skipped, using `contract/tools/body_height.py`. v1.0 used one H per video (first 30 frames), which was ~25% off on real footage where the player moves toward or away from the camera. File formats are unchanged, so `schema_version` stays `"1.0"`. Example metric values changed by about 2%; all statuses are unchanged. | **D** (metrics: use `rep_body_height` for every rep). **C** may keep a video-wide H to *find* contacts, but per-rep thresholds (plant, end, foot) should use `rep_body_height`. **E** is unaffected (it normalizes by torso length). |
+| 1.0 | 2026-10-20 | First version. | |

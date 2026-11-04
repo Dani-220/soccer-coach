@@ -173,10 +173,11 @@ def make_rep(kick, ball_x, plant_gap, lean_back, ball_speed_px, hip_back, ankle_
     return frames, balls, truth
 
 
-def body_height_px(frames):
-    """Contract definition: nose y to the lower ankle y, median over the first 30 frames."""
-    hs = [max(f["left_ankle"][1], f["right_ankle"][1]) - f["nose"][1] for f in frames[:30]]
-    return float(np.median(hs))
+def body_height_px(frames, tr):
+    """Contract v1.1 body height for one rep, via the shared reference implementation."""
+    from body_height import rep_body_height
+    kps = [{n: (float(v[0]), float(v[1]), 1.0) for n, v in f.items()} for f in frames]   # noise-free, full confidence
+    return float(rep_body_height(kps, {k: tr[k] for k in ("start", "plant", "contact", "end")}, FPS))
 
 
 def angle_at(a, b, c):
@@ -187,7 +188,7 @@ def angle_at(a, b, c):
 def true_metrics(frames, balls, tr, offset, ball_speed_px):
     k, s = tr["foot"], ("left" if tr["foot"] == "right" else "right")
     P, C, E = tr["plant"], tr["contact"], tr["end"]
-    Hpx = body_height_px(frames)
+    Hpx = body_height_px(frames, tr)
     fp, fc, fe = frames[P], frames[C], frames[E]
     ball = balls[C]
     hip_mid = (fc["left_hip"] + fc["right_hip"]) / 2
