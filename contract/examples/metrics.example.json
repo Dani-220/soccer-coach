@@ -10,7 +10,7 @@
       "metrics": [
         {
           "name": "plant_foot_distance",
-          "value": 0.13,
+          "value": 0.132,
           "unit": "body_heights",
           "target": [
             0.04,
@@ -32,7 +32,7 @@
         },
         {
           "name": "knee_over_ball",
-          "value": 0.085,
+          "value": 0.086,
           "unit": "body_heights",
           "target": [
             -0.04,
@@ -76,7 +76,7 @@
         },
         {
           "name": "follow_through",
-          "value": 0.359,
+          "value": 0.364,
           "unit": "body_heights",
           "target": [
             0.3,
@@ -87,7 +87,7 @@
         },
         {
           "name": "ball_speed",
-          "value": 20.4,
+          "value": 20.6,
           "unit": "m_per_s",
           "target": [
             16,
@@ -105,7 +105,7 @@
       "metrics": [
         {
           "name": "plant_foot_distance",
-          "value": 0.234,
+          "value": 0.239,
           "unit": "body_heights",
           "target": [
             0.04,
@@ -127,7 +127,7 @@
         },
         {
           "name": "knee_over_ball",
-          "value": -0.073,
+          "value": -0.075,
           "unit": "body_heights",
           "target": [
             -0.04,
@@ -171,7 +171,7 @@
         },
         {
           "name": "follow_through",
-          "value": 0.168,
+          "value": 0.172,
           "unit": "body_heights",
           "target": [
             0.3,
@@ -182,7 +182,7 @@
         },
         {
           "name": "ball_speed",
-          "value": 13.6,
+          "value": 13.9,
           "unit": "m_per_s",
           "target": [
             16,
