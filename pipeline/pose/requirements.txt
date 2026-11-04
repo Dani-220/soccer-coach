@@ -1,0 +1,9 @@
+# Workstream B (pipeline/pose). Python 3.11. Tested with mediapipe 1.1.1, ultralytics 8.4.183, opencv 5.0.
+mediapipe>=1.1.1
+ultralytics>=8.3.0
+opencv-python>=4.9
+numpy>=1.24
+
+# tests (they run contract/tools/validate.py, which needs jsonschema)
+pytest>=8.0
+jsonschema>=4.18
