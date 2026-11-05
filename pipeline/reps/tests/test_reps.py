@@ -10,7 +10,8 @@ from pathlib import Path
 
 from pipeline.reps import RepsConfig, detect_reps
 from pipeline.reps.__main__ import main as cli_main
-from pipeline.reps.detect import body_height, find_contacts, load_tracks
+from contract.tools.body_height import rep_body_height
+from pipeline.reps.detect import find_contacts, load_tracks, rep_height
 
 from .synthetic import BODY_H, RepSpec, Scenario, generate
 
@@ -98,9 +99,13 @@ class TestExampleFixtures(ContractMixin, unittest.TestCase):
         self.assertEqual(out["player_id"], "unknown")
         self.assertEqual([r["foot"] for r in out["reps"]], ["right", "left"])
 
-    def test_body_height(self):
-        H = body_height(load_tracks(self.pose, self.ball, RepsConfig()))
-        self.assertAlmostEqual(H, 577, delta=5)
+    def test_body_height_per_rep(self):
+        # contract v1.1: each rep's plant/end thresholds use the H that D will compute for that rep
+        tr = load_tracks(self.pose, self.ball, RepsConfig())
+        for rep in self.out["reps"]:
+            fr = rep["frames"]
+            self.assertEqual(rep_height(tr, fr["start"], fr["contact"], fr["plant"]),
+                             rep_body_height(self.pose["frames"], fr, self.pose["fps"]))
 
 
 class TestSynthetic(ContractMixin, unittest.TestCase):
@@ -158,7 +163,7 @@ class TestSynthetic(ContractMixin, unittest.TestCase):
         self.assertEqual(hidden[-5:], list(range(truths[0]["contact"] - 2, truths[0]["contact"] + 3)))
         cfg = RepsConfig()
         tr = load_tracks(pose, ball, cfg)
-        contacts = find_contacts(tr, body_height(tr), cfg)
+        contacts = find_contacts(tr, cfg)
         self.assertEqual(len(contacts), 1)
         self.assertTrue(contacts[0].seen_leaving)
         self.assertLessEqual(abs(contacts[0].frame - truths[0]["contact"]), 1)
@@ -226,6 +231,55 @@ class TestSynthetic(ContractMixin, unittest.TestCase):
                     self.assertLess(fr["plant"], fr["contact"])
                     self.assertLessEqual(abs(fr["plant"] - truths[0]["plant"]), round(0.05 * fps))
 
+    def test_ball_struck_away_from_camera_shrinks(self):
+        # Regression (behind-the-player video): the ball moves only 70 px on screen while its radius
+        # drops from 15 to 9 px over 4 frames at 30 fps. That's ~2.4 H/s on screen, under jump_speed.
+        sc = Scenario(reps=[RepSpec("right", scale=15 / 39)], fps=30, noise_px=0.5, seed=4)
+        pose, ball, truths = generate(sc)
+        C = truths[0]["contact"]
+        x0, y0, r0, _ = ball["frames"][C]["ball"]
+        self.assertAlmostEqual(r0, 15, delta=0.01)
+        for fr in ball["frames"][C + 1:]:
+            k = fr["f"] - C          # flies up the screen (away), then keeps receding more slowly
+            dy, r = (17.5 * k, 15 - 1.5 * k) if k <= 4 else (70 + 6 * (k - 4), max(5.0, 9 - 0.4 * (k - 4)))
+            fr["ball"] = [x0, y0 - dy, r, 0.9]
+        H = rep_body_height(pose["frames"], truths[0], pose["fps"])
+        self.assertLess(17.5 * 30 / H, RepsConfig().jump_speed)
+
+        reps = detect_reps(pose, ball)["reps"]
+        self.assertValid({"schema_version": "1.0", "video": "v", "player_id": "p", "reps": reps}, pose)
+        self.assertEqual(len(reps), 1)
+        self.assertMatches(reps[0], truths[0], fps=30, contact_tol=1, phase_tol=1)
+        # without the shrink rule it's missed
+        self.assertEqual(detect_reps(pose, ball, None, RepsConfig(jump_shrink_frac=1.0))["reps"], [])
+
+    def test_foot_covering_resting_ball_is_not_a_shot(self):
+        # the detector's radius drops 40% while the foot covers part of the ball, but it never leaves its spot
+        pose, ball, truths = generate(Scenario(reps=[RepSpec(ball_speed_hs=0)], fps=30))
+        C = truths[0]["contact"]
+        for fr in ball["frames"][C - 1:C + 4]:
+            fr["ball"][2] = round(fr["ball"][2] * 0.6, 2)
+        self.assertEqual(detect_reps(pose, ball)["reps"], [])
+
+    def test_detector_radius_noise_at_rest_is_not_a_shot(self):
+        pose, ball, truths = generate(Scenario(reps=[RepSpec(ball_speed_hs=0)]))
+        rng = __import__("numpy").random.default_rng(0)
+        for fr in ball["frames"]:
+            if fr["ball"]:
+                fr["ball"][2] = round(fr["ball"][2] * (1 + rng.uniform(-0.15, 0.15)), 2)   # +/-15% radius jitter
+        self.assertEqual(detect_reps(pose, ball)["reps"], [])
+
+    def test_player_size_differs_per_rep(self):
+        # contract v1.1: H is per rep, so a player twice as far away keeps the same accuracy
+        sc = Scenario(reps=[RepSpec("right"), RepSpec("left", scale=0.5)], noise_px=0.9, seed=5)
+        pose, ball, truths = generate(sc)
+        hs = [rep_body_height(pose["frames"], t, pose["fps"]) for t in truths]
+        self.assertAlmostEqual(hs[1] / hs[0], 0.5, delta=0.02)
+        reps, truths = self.run_scenario(sc)
+        self.assertEqual(len(reps), 2)
+        for rep, truth in zip(reps, truths):
+            self.assertMatches(rep, truth)
+
     def test_ball_moves_without_a_foot_near_it(self):
         reps, _ = self.run_scenario(Scenario(reps=[RepSpec(player_offset=-1.0)]))
         self.assertEqual(reps, [])
@@ -255,9 +309,9 @@ class TestSynthetic(ContractMixin, unittest.TestCase):
     def test_missing_plant_lowers_confidence(self):
         pose, ball, truths = generate(Scenario(reps=[RepSpec("right")]))
         base = detect_reps(pose, ball)["reps"][0]["confidence"]
-        for fr in pose["frames"]:                     # support (left) ankle undetectable
-            if fr["keypoints"]:
-                fr["keypoints"]["left_ankle"][2] = 0.05
+        P, C = truths[0]["plant"], truths[0]["contact"]
+        for fr in pose["frames"][P - 2:C + 16]:      # support (left) ankle hidden behind the kicking leg
+            fr["keypoints"]["left_ankle"][2] = 0.05
         rep = detect_reps(pose, ball)["reps"][0]
         self.assertNotIn("plant", rep["frames"])
         self.assertLess(rep["confidence"], base)
