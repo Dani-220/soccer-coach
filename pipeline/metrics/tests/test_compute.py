@@ -125,6 +125,18 @@ def test_no_confident_foot_points_gives_not_measured_plant_foot_angle(validator)
     assert (m["value"], m["status"]) == (None, "not_measured")
 
 
+def test_no_usable_body_height_gives_not_measured_distances(validator):
+    clip = synthetic_rep("side")
+    for f in range(len(clip.kps)):
+        clip.set_conf(f, "nose", 0.05)                          # H needs a confident nose
+    out = compute_metrics(clip.pose(), clip.ball_doc(), reps_doc(rep()), PLAYER)
+    check_contract(validator, out)
+    got = by_name(out["reps"][0])
+    for name in ("plant_foot_distance", "knee_over_ball", "follow_through", "ball_speed"):
+        assert got[name]["status"] == "not_measured", name
+    assert got["trunk_lean"]["status"] != "not_measured"       # angles don't need H
+
+
 @pytest.mark.parametrize("bad", [float("nan"), float("inf")])
 def test_non_finite_value_is_not_measured(bad):
     cfg = {"range": [140, 180], "unit": "degrees", "views": ["side"]}
@@ -135,7 +147,8 @@ def test_non_finite_value_is_not_measured(bad):
 # --- contract fixtures (side-on, noisy pose; truth measured on the noise-free skeleton) -------------
 
 # Tolerances reflect the fixture's ~1.8 px keypoint noise (foot points are only ~48 px apart).
-TOLERANCE = {"body_heights": 0.01, "degrees": 3.0, "m_per_s": 1.0}
+# body_heights is tight enough to fail with the v1.0 video-wide H (off by up to 0.007 here).
+TOLERANCE = {"body_heights": 0.005, "degrees": 3.0, "m_per_s": 0.5}
 TOLERANCE_BY_METRIC = {"ankle_lock": 6.0}
 
 
