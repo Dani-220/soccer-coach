@@ -1,0 +1,5 @@
+-r ../contract/requirements.txt
+streamlit>=1.44
+pandas>=2.0
+altair>=5.0
+imageio-ffmpeg>=0.5   # transcodes overlay videos to H.264 so browsers can play them
