@@ -1,0 +1,377 @@
+# Shooting drill library for Workstream F (pipeline.coach). Grown from contract/examples/drills.example.yaml.
+# `fixes` uses contract metric names, most-targeted first; cards and the plan match on them.
+# `levels`: casual and/or pro. `default_sets` x `default_reps` is one block; `minutes` includes setup and rest.
+
+# --- Plant foot: distance and direction -------------------------------------------------------------
+- id: d_plant_gates
+  name: Plant-foot gates
+  fixes: [plant_foot_distance, plant_foot_angle]
+  levels: [casual, pro]
+  equipment: [ball, 2 cones or markers]
+  setup: Place two markers a hand's width beside the ball to mark where the plant foot lands.
+  coaching_points: [Land level with the ball, Plant toe points at the target]
+  default_sets: 3
+  default_reps: 10
+  minutes: 8
+- id: d_walk_through_strikes
+  name: Walk-through strikes
+  fixes: [plant_foot_distance, knee_over_ball, ankle_lock]
+  levels: [casual, pro]
+  equipment: [ball, wall or net]
+  setup: Two walking steps into the ball, strike at half power, freeze on landing.
+  coaching_points: [Knee over the ball, Toe down and ankle locked, Hold the finish for 2 seconds]
+  default_sets: 3
+  default_reps: 8
+  minutes: 8
+- id: d_footprint_approach
+  name: Footprint approach
+  fixes: [plant_foot_distance, plant_foot_angle]
+  levels: [casual]
+  equipment: [ball, chalk or flat markers, wall]
+  setup: Mark the last two steps and the plant spot with flat markers; step on each marker and pass firmly into a wall.
+  coaching_points: [Same run-up every time, Last step slightly longer, Plant beside the ball not behind it]
+  default_sets: 3
+  default_reps: 8
+  minutes: 8
+- id: d_plant_and_freeze
+  name: Plant and freeze
+  fixes: [plant_foot_distance, plant_foot_angle, trunk_lean]
+  levels: [casual, pro]
+  equipment: [ball, phone camera]
+  setup: Run in and plant without striking; freeze and check foot position against the ball, then strike on the next rep.
+  coaching_points: [Plant toe level with the front of the ball, Toe points at the target, Chest over the plant foot]
+  default_sets: 2
+  default_reps: 10
+  minutes: 6
+- id: d_target_line_plant
+  name: Target-line plant
+  fixes: [plant_foot_angle, hip_shoulder_separation]
+  levels: [casual, pro]
+  equipment: [ball, rope or line, goal or wall]
+  setup: Lay a line from the ball to the target; plant with the toe pointing along the line and shoot at the target.
+  coaching_points: [Plant toe on the line direction, Hips open to the target after the plant]
+  default_sets: 3
+  default_reps: 8
+  minutes: 8
+- id: d_angled_approach_shots
+  name: Angled-approach shots
+  fixes: [plant_foot_angle, plant_foot_distance, hip_shoulder_separation]
+  levels: [pro]
+  equipment: [ball, goal, 3 cones]
+  setup: Start from cones at 30, 45 and 60 degrees to the ball and shoot from 16 m, rotating through the cones.
+  coaching_points: [Curve the run so the plant foot still points at goal, Adjust the last step not the plant]
+  default_sets: 3
+  default_reps: 6
+  minutes: 10
+- id: d_moving_ball_plant
+  name: Moving-ball plant
+  fixes: [plant_foot_distance, knee_over_ball]
+  levels: [pro]
+  equipment: [ball, goal, partner or rebounder]
+  setup: Partner rolls the ball across you from the side; adjust your steps and finish first time from 14 m.
+  coaching_points: [Small adjusting steps early, Plant beside where the ball will be, Knee over the ball]
+  default_sets: 4
+  default_reps: 6
+  minutes: 12
+
+# --- Knee over the ball and body position -----------------------------------------------------------
+- id: d_knee_over_ball_wall
+  name: Knee-over-ball wall strikes
+  fixes: [knee_over_ball, trunk_lean]
+  levels: [casual, pro]
+  equipment: [ball, wall]
+  setup: From 6 m, strike into a wall below knee height; any ball that rises above the mark does not count.
+  coaching_points: [Kicking knee over the ball at contact, Head still and eyes on the ball]
+  default_sets: 3
+  default_reps: 10
+  minutes: 8
+- id: d_low_driven_pass_gate
+  name: Low driven pass through a gate
+  fixes: [knee_over_ball, ankle_lock, trunk_lean]
+  levels: [casual, pro]
+  equipment: [ball, 2 cones]
+  setup: Drive the ball with the laces through a 1 m cone gate 15 m away; it must stay on the ground.
+  coaching_points: [Knee over the ball, Strike through the middle, Land on the kicking foot]
+  default_sets: 3
+  default_reps: 8
+  minutes: 8
+- id: d_under_the_bar
+  name: Under-the-bar challenge
+  fixes: [knee_over_ball, trunk_lean, ball_speed]
+  levels: [casual, pro]
+  equipment: [ball, goal, rope or tape across the goal at hip height]
+  setup: Shoot from 14 m; only shots under the rope count. Score out of 10.
+  coaching_points: [Chest over the ball, Knee over the ball, Full power only once the shot stays low]
+  default_sets: 2
+  default_reps: 10
+  minutes: 10
+- id: d_half_volley_knee
+  name: Half-volley knee control
+  fixes: [knee_over_ball, ankle_lock]
+  levels: [pro]
+  equipment: [ball, wall or goal]
+  setup: Bounce the ball once and strike it just after it lands so the shot stays down.
+  coaching_points: [Wait for the bounce, Knee over the ball at contact, Toe pointed down]
+  default_sets: 3
+  default_reps: 8
+  minutes: 8
+
+# --- Trunk lean -------------------------------------------------------------------------------------
+- id: d_land_on_kicking_foot
+  name: Land on the kicking foot
+  fixes: [trunk_lean, follow_through]
+  levels: [casual, pro]
+  equipment: [ball, goal or wall]
+  setup: Strike from 12 m and land on the kicking foot, ending a step past the ball.
+  coaching_points: [Chest over the ball, Follow through toward the target]
+  default_sets: 3
+  default_reps: 8
+  minutes: 10
+- id: d_low_target_finishing
+  name: Low-target finishing
+  fixes: [trunk_lean, knee_over_ball, ball_speed]
+  levels: [casual, pro]
+  equipment: [ball, goal, 2 targets in the bottom corners]
+  setup: Shoot from 16 m at targets in the bottom corners; only low shots count.
+  coaching_points: [Strike the middle of the ball, Keep the shot under knee height]
+  default_sets: 4
+  default_reps: 6
+  minutes: 12
+- id: d_chest_over_ball_mirror
+  name: Chest-over-ball shadow strikes
+  fixes: [trunk_lean, knee_over_ball]
+  levels: [casual]
+  equipment: [mirror or phone camera, ball]
+  setup: Shadow the shooting motion side-on to a mirror without a ball, then repeat with a ball at half power.
+  coaching_points: [Shoulders in front of the hips at contact, Plant knee slightly bent]
+  default_sets: 2
+  default_reps: 10
+  minutes: 6
+- id: d_hand_on_hip_shots
+  name: Arm-balance shots
+  fixes: [trunk_lean, hip_shoulder_separation]
+  levels: [casual, pro]
+  equipment: [ball, goal]
+  setup: Shoot from 14 m with the opposite arm held out wide for balance; hold the finish for two seconds.
+  coaching_points: [Opposite arm out for balance, Stay tall and forward, No falling back]
+  default_sets: 3
+  default_reps: 6
+  minutes: 8
+- id: d_pass_to_shoot_lean
+  name: Lay-off and shoot
+  fixes: [trunk_lean, plant_foot_distance, ball_speed]
+  levels: [pro]
+  equipment: [ball, goal, partner]
+  setup: Pass to a partner at the edge of the box, take the lay-off in stride and finish first time.
+  coaching_points: [Attack the ball do not wait for it, Body over the ball, Hit through it]
+  default_sets: 4
+  default_reps: 5
+  minutes: 12
+
+# --- Hip-shoulder separation (front camera) ---------------------------------------------------------
+- id: d_coil_and_release
+  name: Coil-and-release swings
+  fixes: [hip_shoulder_separation, ball_speed]
+  levels: [casual, pro]
+  equipment: [ball, wall]
+  setup: Stand at the ball, swing the arm back to coil the shoulders, then rotate hips first and strike into a wall.
+  coaching_points: [Hips lead the shoulders, Opposite arm swings across, Strike as the hips open]
+  default_sets: 3
+  default_reps: 8
+  minutes: 8
+- id: d_band_hip_rotations
+  name: Band hip rotations
+  fixes: [hip_shoulder_separation]
+  levels: [casual, pro]
+  equipment: [resistance band, post or partner]
+  setup: Band around the hips anchored to the side; rotate the hips against it while keeping the shoulders still.
+  coaching_points: [Shoulders quiet, Hips turn fast, Brace the core]
+  default_sets: 3
+  default_reps: 12
+  minutes: 6
+- id: d_med_ball_rotational_throw
+  name: Medicine-ball rotational throws
+  fixes: [hip_shoulder_separation, ball_speed]
+  levels: [pro]
+  equipment: [medicine ball 2-4 kg, wall]
+  setup: Side-on to a wall, rotate the hips first and throw the medicine ball hard into the wall.
+  coaching_points: [Hips start the throw, Shoulders follow late, Explode through]
+  default_sets: 3
+  default_reps: 8
+  minutes: 8
+- id: d_long_range_rotation
+  name: Long-range rotation shots
+  fixes: [hip_shoulder_separation, ball_speed, follow_through]
+  levels: [pro]
+  equipment: [balls, goal]
+  setup: Shoot from 22-25 m with a three-step run-up, aiming for full-power swerve-free strikes.
+  coaching_points: [Big opposite-arm swing, Hips open through the ball, Follow through to the target]
+  default_sets: 3
+  default_reps: 6
+  minutes: 12
+
+# --- Ankle lock -------------------------------------------------------------------------------------
+- id: d_ankle_lock_volleys
+  name: Ankle-lock dropped volleys
+  fixes: [ankle_lock, ball_speed]
+  levels: [pro]
+  equipment: [ball, wall]
+  setup: Drop the ball from your hands and strike it on the half-volley into a wall.
+  coaching_points: [Toe pointed down, Firm ankle through contact]
+  default_sets: 3
+  default_reps: 10
+  minutes: 8
+- id: d_laces_juggling
+  name: Laces juggling
+  fixes: [ankle_lock]
+  levels: [casual, pro]
+  equipment: [ball]
+  setup: Juggle with the laces only, counting touches; the ball should not spin backward.
+  coaching_points: [Toe pointed, Ankle firm, Contact with the laces not the toe]
+  default_sets: 3
+  default_reps: 20
+  minutes: 6
+- id: d_seated_laces_pass
+  name: Seated laces strikes
+  fixes: [ankle_lock]
+  levels: [casual]
+  equipment: [ball, wall]
+  setup: Sit on the ground 3 m from a wall and strike a still ball with the laces using only the lower leg.
+  coaching_points: [Point the toe before the swing, Hold the ankle stiff, Strike the middle of the ball]
+  default_sets: 2
+  default_reps: 15
+  minutes: 5
+- id: d_toe_down_tap_shots
+  name: Toe-down tap shots
+  fixes: [ankle_lock, knee_over_ball]
+  levels: [casual, pro]
+  equipment: [ball, wall]
+  setup: From 5 m, take one step and hit short, firm laces shots into a wall at shin height.
+  coaching_points: [Toe down before the swing starts, Knee over the ball, Short sharp contact]
+  default_sets: 3
+  default_reps: 10
+  minutes: 6
+- id: d_calf_ankle_strength
+  name: Ankle and calf strength circuit
+  fixes: [ankle_lock]
+  levels: [casual, pro]
+  equipment: [resistance band, step]
+  setup: Banded plantar flexion, single-leg calf raises on a step and ankle isometrics held at full point.
+  coaching_points: [Slow and controlled, Full point at the top, Equal work on both legs]
+  default_sets: 3
+  default_reps: 12
+  minutes: 8
+
+# --- Follow-through ---------------------------------------------------------------------------------
+- id: d_follow_through_step
+  name: Step-through finish
+  fixes: [follow_through, trunk_lean]
+  levels: [casual, pro]
+  equipment: [ball, cone, goal or wall]
+  setup: Place a cone one stride past the ball; after the strike the kicking foot must land beyond the cone.
+  coaching_points: [Keep the leg swinging after contact, Land past the cone, Chest forward]
+  default_sets: 3
+  default_reps: 8
+  minutes: 8
+- id: d_full_swing_shadow
+  name: Full-swing shadow kicks
+  fixes: [follow_through, hip_shoulder_separation]
+  levels: [casual]
+  equipment: [none]
+  setup: Without a ball, make slow full kicking swings and hold the finish with the kicking knee high toward the target.
+  coaching_points: [Swing through not at, Finish high toward the target, Balanced on the plant leg]
+  default_sets: 2
+  default_reps: 12
+  minutes: 5
+- id: d_through_the_ball_rebounder
+  name: Through-the-ball rebounder strikes
+  fixes: [follow_through, ball_speed, ankle_lock]
+  levels: [casual, pro]
+  equipment: [ball, rebounder or wall]
+  setup: Strike into a rebounder from 10 m, control the return and strike again, keeping a full follow-through each time.
+  coaching_points: [Accelerate through contact, Do not stop the leg at the ball, Toe down]
+  default_sets: 3
+  default_reps: 10
+  minutes: 10
+
+# --- Ball speed and finishing ----------------------------------------------------------------------
+- id: d_power_shots_16m
+  name: Power shots from 16 m
+  fixes: [ball_speed, follow_through]
+  levels: [casual, pro]
+  equipment: [balls, goal]
+  setup: Line up balls on the edge of the box and shoot at full power, resting 20 seconds between shots.
+  coaching_points: [Fast last two steps, Laces through the middle, Follow through]
+  default_sets: 3
+  default_reps: 6
+  minutes: 10
+- id: d_progressive_distance
+  name: Progressive-distance shooting
+  fixes: [ball_speed, knee_over_ball, trunk_lean]
+  levels: [casual, pro]
+  equipment: [balls, goal, 4 cones at 10, 14, 18 and 22 m]
+  setup: Shoot two balls from each cone, moving back after each pair; restart when a shot goes over the bar.
+  coaching_points: [Same technique at every distance, Stay over the ball as power rises]
+  default_sets: 2
+  default_reps: 8
+  minutes: 12
+- id: d_first_time_cutbacks
+  name: First-time cut-back finishes
+  fixes: [ball_speed, plant_foot_distance]
+  levels: [pro]
+  equipment: [balls, goal, partner]
+  setup: Partner cuts the ball back from the byline; finish first time from the penalty spot area.
+  coaching_points: [Arrive late and fast, Plant beside the ball, Strike across the goalkeeper]
+  default_sets: 4
+  default_reps: 6
+  minutes: 12
+- id: d_shot_speed_radar
+  name: Shot-speed test
+  fixes: [ball_speed]
+  levels: [casual, pro]
+  equipment: [balls, goal, phone with speed app or camera]
+  setup: Film five full-power shots from 16 m from the side and record the best speed; repeat weekly.
+  coaching_points: [Full warm-up first, Full run-up, Rest one minute between shots]
+  default_sets: 1
+  default_reps: 5
+  minutes: 8
+- id: d_weak_foot_wall_ladder
+  name: Weak-foot wall ladder
+  fixes: [ankle_lock, knee_over_ball, ball_speed]
+  levels: [casual, pro]
+  equipment: [ball, wall]
+  setup: Strike laces shots into a wall from 5, 8, 11 and 14 m; move back only after five clean strikes.
+  coaching_points: [Slow technique before power, Toe down, Knee over the ball]
+  default_sets: 2
+  default_reps: 10
+  minutes: 10
+- id: d_turn_and_shoot
+  name: Turn and shoot
+  fixes: [plant_foot_distance, hip_shoulder_separation, ball_speed]
+  levels: [pro]
+  equipment: [balls, goal, partner, mannequin or cone]
+  setup: Receive with your back to goal beside a mannequin, turn on the first touch and shoot within two touches.
+  coaching_points: [First touch sets the ball for the plant, Open the hips on the turn, Shoot quickly]
+  default_sets: 4
+  default_reps: 5
+  minutes: 12
+- id: d_dribble_and_shoot
+  name: Dribble-and-shoot slalom
+  fixes: [plant_foot_distance, follow_through, ball_speed]
+  levels: [casual, pro]
+  equipment: [balls, goal, 5 cones]
+  setup: Dribble through five cones then shoot from 16 m off the last touch.
+  coaching_points: [Last touch out of your feet at an angle, Plant beside the ball, Strike through]
+  default_sets: 3
+  default_reps: 5
+  minutes: 12
+- id: d_penalty_routine
+  name: Penalty routine
+  fixes: [plant_foot_angle, plant_foot_distance, ankle_lock]
+  levels: [casual, pro]
+  equipment: [balls, goal]
+  setup: Take penalties with the same run-up every time, aiming at a chosen side before you start.
+  coaching_points: [Same steps every kick, Plant toe at the chosen corner, Firm ankle]
+  default_sets: 2
+  default_reps: 5
+  minutes: 8
