@@ -35,6 +35,7 @@ class RepSpec:
     hide_ball_at_contact: int = 0  # frames hidden on each side of contact
     lose_ball_in_flight: bool = False  # detector never sees the ball after contact
     player_offset: float = 0.0   # H; shifts the whole player along x (e.g. -1: nobody near the ball)
+    scale: float = 1.0           # on-screen size of player and ball (e.g. 0.5: twice as far from camera)
 
 
 @dataclass
@@ -140,19 +141,22 @@ def generate(sc: Scenario):
     for i, spec in enumerate(sc.reps):
         frames, balls, tr, N = _rep(spec, sc.fps)
         off = len(pose_frames)
+        s = spec.scale
+        scaled = lambda p: np.array([p[0] * s, GROUND + (p[1] - GROUND) * s])   # about the ball's spot
         for t in range(N):
             kp = {}
             for name in CORE:
-                x, y = frames[t][name] + rng.normal(0, sc.noise_px, 2) if sc.noise_px else frames[t][name]
+                x, y = scaled(frames[t][name]) + rng.normal(0, sc.noise_px, 2) if sc.noise_px else scaled(frames[t][name])
                 conf = sc.toe_conf if name.endswith("foot_index") else 0.9
                 kp[name] = [round(float(mirror(x)), 2), round(float(y), 2), conf]
             pose_frames.append({"f": off + t, "keypoints": kp})
             b = balls[t]
             if b is not None:
+                b = scaled(b)
                 bx, by = mirror(b[0]), b[1]
                 if sc.noise_px:
                     bx, by = np.array([bx, by]) + rng.normal(0, sc.noise_px * 0.6, 2)
-                b = [round(float(bx), 2), round(float(by), 2), BALL_R, 0.9] if 0 <= bx < W and 0 <= by < H_IMG else None
+                b = [round(float(bx), 2), round(float(by), 2), round(BALL_R * s, 2), 0.9] if 0 <= bx < W and 0 <= by < H_IMG else None
             ball_frames.append({"f": off + t, "ball": b})
         truths.append({k: (v + off if k != "foot" else v) for k, v in tr.items()})
         if i < len(sc.reps) - 1:

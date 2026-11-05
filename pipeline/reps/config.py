@@ -23,7 +23,12 @@ class RepsConfig:
     rest_window_s: float = 0.15         # how far back to look when checking the ball is at rest
     min_rest_samples: int = 3           # visible ball detections needed inside that window
     rest_radius: float = 0.03           # H; all resting detections lie within this of their median
-    jump_speed: float = 3.0             # H/s; ball speed after the jump must reach this
+    jump_speed: float = 3.0             # H/s; ball speed after the jump must reach this, OR
+    leave_rest_radii: float = 2.0       # ...its first detection off the spot is this many rest_radius
+                                        #    away and the next is farther still (any on-screen speed), OR
+    jump_shrink_frac: float = 0.25      # ...its radius drops by this fraction within shrink_window_s of
+    shrink_window_s: float = 0.15       #    that first detection off the spot (ball struck away from the
+                                        #    camera, e.g. behind-the-player video, moves slowly on screen)
     max_ball_gap_s: float = 0.17        # longest ball occlusion bridged around contact (foot hides it);
                                         #    0.17 s bridges 5 hidden frames at 30 fps
     # A foot must touch the resting ball: gaps are measured to the ball's surface (ball.json radius).

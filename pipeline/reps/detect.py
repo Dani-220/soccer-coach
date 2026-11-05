@@ -11,17 +11,22 @@ Per rep:
   plant    the first frame of the support ankle's final stationary period before contact.
   end      the first frame after contact from which the kicking ankle stays still.
   start    contact minus `approach_s`, clamped to the player's visible segment and the previous rep.
+
+Body height H (contract v1.1) comes from contract/tools/body_height.py, per rep: when searching for a
+contact, from the 0.3 s before the candidate frame; for plant and end, from the 0.3 s before plant.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 import numpy as np
+
+from contract.tools.body_height import rep_body_height, video_body_height
 
 from .config import RepsConfig
 
 SCHEMA_VERSION = "1.0"
-BODY_HEIGHT_FRAMES = 30   # CONTRACT.md: median over the first 30 frames with a player
 _POINTS = ("nose", "left_ankle", "right_ankle", "left_foot_index", "right_foot_index")
 
 
@@ -37,6 +42,7 @@ class Tracks:
     points: dict[str, np.ndarray] # name -> (n, 2)
     ball: np.ndarray              # (n, 2)
     ball_r: np.ndarray            # (n,) radius px
+    pose_frames: list             # pose.json "frames", for contract body height
 
     @property
     def n(self) -> int:
@@ -85,17 +91,23 @@ def load_tracks(pose: dict, ball: dict, cfg: RepsConfig) -> Tracks:
         det = fr["ball"]
         if det is not None and det[3] >= cfg.min_ball_conf:
             b[fr["f"]], r[fr["f"]] = det[:2], det[2]
-    return Tracks(float(pose["fps"]), has_player, points, b, r)
+    if video_body_height(pose["frames"]) is None:
+        raise ValueError("no frame with a confident nose and ankles; can't compute body height")
+    return Tracks(float(pose["fps"]), has_player, points, b, r, pose["frames"])
 
 
-def body_height(tr: Tracks) -> float:
-    """Nose to the lower ankle, median over the first 30 frames with a player (px)."""
-    lower_ankle_y = np.fmax(tr.ankle("left")[:, 1], tr.ankle("right")[:, 1])
-    h = lower_ankle_y - tr.points["nose"][:, 1]
-    h = h[tr.has_player & np.isfinite(h)][:BODY_HEIGHT_FRAMES]
-    if len(h) == 0:
-        raise ValueError("no frame with a nose and an ankle; can't compute body height")
-    return float(np.median(h))
+def rep_height(tr: Tracks, start: int, contact: int, plant: int | None = None) -> float:
+    """Contract v1.1 body height (px) for a rep; without a plant the 0.3 s before contact is used."""
+    frames = {"start": int(start), "contact": int(contact)}
+    if plant is not None:
+        frames["plant"] = int(plant)
+    return float(rep_body_height(tr.pose_frames, frames, tr.fps))
+
+
+def contact_height_fn(tr: Tracks, cfg: RepsConfig):
+    """H around a candidate contact frame f, as if f were the rep's contact (cached per frame)."""
+    approach = cfg.frames(cfg.approach_s, tr.fps)
+    return lru_cache(maxsize=None)(lambda f: rep_height(tr, max(0, f - approach), f))
 
 
 def _dist(a, b) -> np.ndarray:
@@ -159,8 +171,18 @@ def _vanish_contact(tr: Tracks, a: int, b: int | None, rest, rest_r, H: float, c
     return None                             # no moving foot reached the ball
 
 
-def find_contacts(tr: Tracks, H: float, cfg: RepsConfig) -> list[Contact]:
+def _shrink_frame(tr: Tracks, vis: np.ndarray, b: int, rest_r: float, cfg: RepsConfig) -> int | None:
+    """First detection within `shrink_window_s` of b (the first one off the resting spot) whose
+    radius dropped by `jump_shrink_frac`. Anchored at b, not at the last rest frame, so an
+    occlusion at contact doesn't eat into the window."""
+    win = vis[(vis >= b) & (vis <= b + cfg.frames(cfg.shrink_window_s, tr.fps))]
+    hit = win[tr.ball_r[win] <= (1 - cfg.jump_shrink_frac) * rest_r]
+    return int(hit[0]) if len(hit) else None
+
+
+def find_contacts(tr: Tracks, cfg: RepsConfig) -> list[Contact]:
     fps = tr.fps
+    height_at = contact_height_fn(tr, cfg)
     vis = np.flatnonzero(np.isfinite(tr.ball[:, 0]))
     max_gap = cfg.frames(cfg.max_ball_gap_s, fps) + 1   # +1: a gap of k hidden frames spans k+1
     touch_win = cfg.frames(cfg.touch_window_s, fps)
@@ -170,6 +192,7 @@ def find_contacts(tr: Tracks, H: float, cfg: RepsConfig) -> list[Contact]:
     for i, a in enumerate(vis):            # a: last resting detection
         if a < next_allowed:
             continue
+        H = height_at(int(a))
         resting = _resting(tr, vis, a, H, cfg)
         if resting is None:
             continue
@@ -183,22 +206,24 @@ def find_contacts(tr: Tracks, H: float, cfg: RepsConfig) -> list[Contact]:
             continue
         d_b = float(_dist(tr.ball[b], rest))
         if d_b <= cfg.rest_radius * H:
-            continue                        # still at rest
+            continue                        # still at rest (a radius drop alone may be a foot covering it)
 
         # Flight speed from the next detection when there is one; it must keep moving away.
         c = vis[i + 2] if i + 2 < len(vis) and vis[i + 2] - b <= max_gap else None
-        if c is not None:
-            if _dist(tr.ball[c], rest) <= d_b:
-                continue                    # a one-frame glitch, not a kick
-            v = float(_dist(tr.ball[c], tr.ball[b])) / (c - b)
-        else:
-            v = d_b / (b - a)
+        glitch = c is not None and _dist(tr.ball[c], rest) <= d_b   # a one-frame jump, not a kick
+        v = float(_dist(tr.ball[c], tr.ball[b])) / (c - b) if c is not None else d_b / (b - a)
         speed = v * fps / H
-        if speed < cfg.jump_speed:
+        # A ball struck away from the camera moves slowly on screen: it still clears its spot in
+        # one step and keeps going, or shrinks. The step is from a, not the rest median, which lags
+        # behind a ball that has just started to roll.
+        step = float(_dist(tr.ball[b], tr.ball[a]))
+        left = c is not None and not glitch and step >= cfg.leave_rest_radii * cfg.rest_radius * H
+        shrunk = _shrink_frame(tr, vis, b, rest_r, cfg) is not None
+        if not ((not glitch and speed >= cfg.jump_speed) or left or shrunk):
             continue
 
         # Back-project to when the ball left its resting spot (handles occlusion at contact).
-        frame = int(np.clip(round(b - d_b / v), a, b - 1))
+        frame = int(np.clip(round(b - d_b / v), a, b - 1)) if v > 0 else int(a)
 
         lo, hi = max(0, frame - touch_win), min(tr.n - 1, frame + touch_win)
         if not foot_touches_ball(tr, lo, hi, rest, rest_r, H, cfg):
@@ -316,12 +341,11 @@ def find_end(tr: Tracks, kick: str, contact: int, latest: int, H: float, cfg: Re
 def detect_reps(pose: dict, ball: dict, player: dict | None = None, cfg: RepsConfig | None = None) -> dict:
     cfg = cfg or RepsConfig()
     tr = load_tracks(pose, ball, cfg)
-    H = body_height(tr)
     strong = (player or {}).get("strong_foot")
     pose_gap = cfg.frames(cfg.max_pose_gap_s, tr.fps)
 
     reps, prev_end = [], -1
-    for contact in find_contacts(tr, H, cfg):
+    for contact in find_contacts(tr, cfg):
         c = contact.frame
         seg_start, seg_end = segment_bounds(tr.has_player, c, pose_gap)
         start = max(seg_start, c - cfg.frames(cfg.approach_s, tr.fps), prev_end + 1, 0)
@@ -329,7 +353,14 @@ def detect_reps(pose: dict, ball: dict, player: dict | None = None, cfg: RepsCon
             continue                        # overlaps the previous rep's follow-through
 
         call = call_foot(tr, contact, cfg, strong)
-        plant = find_plant(tr, other_foot(call.foot), c, seg_end, start, H, cfg)
+        # H is measured before the plant, which needs H to find: start from the 0.3 s before
+        # contact, then refine once with the plant found (that final H is what D will use).
+        support = other_foot(call.foot)
+        H = rep_height(tr, start, c)
+        plant = find_plant(tr, support, c, seg_end, start, H, cfg)
+        if plant is not None:
+            H = rep_height(tr, start, c, plant)
+            plant = find_plant(tr, support, c, seg_end, start, H, cfg)
         end, end_seen = find_end(tr, call.foot, c, seg_end, H, cfg)
 
         conf = call.confidence
