@@ -28,11 +28,13 @@ jobs:
       # Every requirements.txt in the repo, so new workstreams are picked up automatically, minus the
       # model packages (mediapipe, ultralytics and the torch it pulls in) that only the `models` tests
       # use. Those tests download weights and are skipped below. opencv-python is swapped for the
-      # headless build; installing both breaks cv2.
+      # headless build; installing both breaks cv2. -r/-c lines are dropped: their relative paths break
+      # once the combined file is in $RUNNER_TEMP, and the files they point to are collected anyway.
       - name: Install requirements
         run: |
           python -m pip install --upgrade pip
           find . -name requirements.txt -not -path "./.git/*" -not -path "*/node_modules/*" -not -path "./.venv/*" -exec awk 1 {} + \
+            | grep -vE '^[[:space:]]*(-[rc]|--(requirement|constraint)[[:space:]=])' \
             | grep -viE '^[[:space:]]*(mediapipe|ultralytics|opencv-python)[[:space:]]*([<>=!~;#[]|$)' \
             > "$RUNNER_TEMP/requirements-ci.txt"
           echo "opencv-python-headless>=4.8" >> "$RUNNER_TEMP/requirements-ci.txt"
