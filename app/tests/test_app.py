@@ -109,10 +109,24 @@ def test_not_measured_grouping(run_dir):
     assert groups["side"] == ["knee_over_ball"] and groups["other"] == ["plant_foot_distance"]
 
 
-def test_cards_fall_back_to_example(run_dir):
-    cards, source = core.load_cards(run_dir)
+def test_cards_fall_back_to_example(run_dir, tmp_path):
+    run = tmp_path / "run"
+    shutil.copytree(run_dir, run)  # a copy, so the shared run folder keeps F's cards.json
+    (run / "cards.json").unlink(missing_ok=True)
+    cards, source = core.load_cards(run)
     assert source == "example"
     assert [c["metric"] for c in cards["r002"]] == ["plant_foot_distance", "trunk_lean"]
+
+
+def test_cards_from_pipeline_when_present(run_dir, tmp_path):
+    run = tmp_path / "run"
+    shutil.copytree(run_dir, run)
+    doc = core.load_json(EX / "cards.example.json")
+    doc["reps"][1]["cards"][0]["headline"] = "Written by the pipeline"
+    (run / "cards.json").write_text(json.dumps(doc))
+    cards, source = core.load_cards(run)
+    assert source == "pipeline"
+    assert cards["r002"][0]["headline"] == "Written by the pipeline"
 
 
 def test_tags_and_formatting():
@@ -124,7 +138,7 @@ def test_tags_and_formatting():
 
 def test_streamlit_app_end_to_end(tmp_path, monkeypatch):
     """Create a profile, run on the fixture, and render all three tabs without exceptions."""
-    from streamlit.testing.v1 import AppTest
+    AppTest = pytest.importorskip("streamlit.testing.v1").AppTest
     monkeypatch.setenv("SOCCER_COACH_OUT", str(tmp_path))
     for mod in ("app", "app.core", "app.history"):
         sys.modules.pop(mod, None)  # so the app re-reads SOCCER_COACH_OUT
@@ -139,7 +153,8 @@ def test_streamlit_app_end_to_end(tmp_path, monkeypatch):
     at.run()  # re-render with the new session in history
     text = " ".join(i.value for i in at.info)
     assert "Film front-on to measure: plant foot angle, hip shoulder separation" in text
-    assert any("Example cards" in w.value for w in at.warning)
+    coach_built = (REPO / "pipeline" / "coach" / "__main__.py").exists()
+    assert any("Example cards" in w.value for w in at.warning) != coach_built
     assert (tmp_path / "history.sqlite").exists()
     for mod in ("app", "app.core", "app.history"):
         sys.modules.pop(mod, None)
