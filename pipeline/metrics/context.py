@@ -1,15 +1,17 @@
 """Shared per-rep measurement context: keypoint access, body height, direction, camera view, ball position.
 
 Everything here follows CONTRACT.md conventions: pixel coordinates with y growing downward, integer
-frame indices, MediaPipe keypoint names, and body height H = nose-to-lower-ankle vertical distance.
+frame indices, MediaPipe keypoint names. Body height H is computed per rep (contract v1.1) by the shared
+contract/tools/body_height.py, never reimplemented here.
 """
 from dataclasses import dataclass
 
 import numpy as np
 
+from contract.tools.body_height import rep_body_height
+
 # Nose-to-ankle is ~93% of standing height (CONTRACT.md: H_cm = height_cm * 0.93).
 NOSE_TO_ANKLE_OF_STATURE = 0.93
-BODY_HEIGHT_FRAMES = 30
 # Shoulder-width / torso-length ratio above which the camera is treated as facing the player.
 # Side-on this ratio is ~0.05 (both shoulders overlap); facing the camera it is ~0.8.
 FRONT_VIEW_WIDTH_RATIO = 0.35
@@ -54,26 +56,6 @@ def hip_mid(kp):
 
 def shoulder_mid(kp):
     return midpoint(kp, "left_shoulder", "right_shoulder")
-
-
-def body_height_px(frames):
-    """Body height H in pixels, as defined in CONTRACT.md.
-
-    H = median over the first 30 usable frames of
-        max(left_ankle.y, right_ankle.y) - nose.y
-    (vertical distance from the nose to the lower ankle; y grows downward). A frame is usable when
-    it has a player and the nose and both ankles are at or above MIN_CONFIDENCE. Both ankles are
-    required, because with one of them missing there is no way to tell which ankle is lower.
-    Returns None if no frame is usable.
-    """
-    hs = []
-    for kp in frames:
-        nose, la, ra = xy(kp, "nose"), xy(kp, "left_ankle"), xy(kp, "right_ankle")
-        if nose is not None and la is not None and ra is not None:
-            hs.append(max(la[1], ra[1]) - nose[1])
-            if len(hs) == BODY_HEIGHT_FRAMES:
-                break
-    return float(np.median(hs)) if hs else None
 
 
 def travel_direction(frames, start, end):
@@ -121,8 +103,8 @@ class RepContext:
     frames: list          # per-frame {keypoint: [x, y, conf]} ({} = no player)
     balls: list           # per-frame [x, y, r, conf] or None
     fps: float
-    H: float              # body height, px
-    px_per_m: float       # None when the player's height is unknown
+    H: float              # this rep's body height, px (rep_body_height); None if no usable frame
+    px_per_m: float       # None when the player's height or H is unknown
     direction: int        # +1 = moving toward +x, -1 = toward -x
     view: str             # 'side' or 'front'
     foot: str             # kicking foot, 'left' | 'right'
@@ -163,11 +145,17 @@ class RepContext:
 
     @classmethod
     def build(cls, video, rep, height_cm=None):
-        """Context for one reps.json entry. A missing `plant` frame falls back to contact."""
+        """Context for one reps.json entry. A missing `plant` frame falls back to contact.
+
+        H comes from contract/tools/body_height.py: median nose-to-lower-ankle height over the
+        0.3 s before the plant, with its own fallbacks (the whole rep, then the whole video).
+        """
         fr = rep["frames"]
-        px_per_m = video.H / (height_cm / 100 * NOSE_TO_ANKLE_OF_STATURE) if height_cm else None
+        H = rep_body_height(video.frames, fr, video.fps)
+        H = float(H) if H is not None else None
+        px_per_m = H / (height_cm / 100 * NOSE_TO_ANKLE_OF_STATURE) if height_cm and H else None
         return cls(
-            frames=video.frames, balls=video.balls, fps=video.fps, H=video.H, px_per_m=px_per_m,
+            frames=video.frames, balls=video.balls, fps=video.fps, H=H, px_per_m=px_per_m,
             direction=travel_direction(video.frames, fr["start"], fr["contact"]),
             view=video.view, foot=rep["foot"],
             start=fr["start"], plant=fr.get("plant", fr["contact"]), contact=fr["contact"], end=fr["end"],
@@ -176,19 +164,15 @@ class RepContext:
 
 @dataclass
 class Video:
-    """Parsed pose + ball data and the per-video quantities (H, camera view)."""
+    """Parsed pose + ball data and the per-video camera view (H is per rep, see RepContext.build)."""
     frames: list
     balls: list
     fps: float
-    H: float
     view: str
 
     @classmethod
     def load(cls, pose, ball, view=None):
         """`view` ('side' | 'front') overrides auto-detection."""
         frames = _parse_frames(pose)
-        H = body_height_px(frames)
-        if H is None or H <= 0:
-            raise ValueError("pose.json has no usable frame with a player; cannot compute body height")
         return cls(frames=frames, balls=_parse_balls(ball, len(frames)), fps=float(pose["fps"]),
-                   H=H, view=view or camera_view(frames))
+                   view=view or camera_view(frames))

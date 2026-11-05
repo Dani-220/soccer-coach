@@ -1,11 +1,12 @@
 """Instep-shot metrics. One function per metric; each returns (value, frame).
 
 `value` is None when the inputs needed for it are missing: no player or no ball where it is needed,
-or a needed keypoint below MIN_CONFIDENCE (context.py), which counts as missing.
+or a needed keypoint below MIN_CONFIDENCE (context.py), which counts as missing, or (for distances)
+no usable frame to measure this rep's body height H.
 Whether a metric is measurable from the camera view at all is decided by `views` in targets.yaml,
 not here. Notation used in the docstrings:
 
-    H      body height in px (nose to lower ankle, CONTRACT.md)
+    H      this rep's body height in px (nose to lower ankle, 0.3 s before the plant; contract v1.1)
     dir    +1 if the player travels toward +x, -1 toward -x (from hip motion)
     K, S   kicking and support (plant) side, e.g. K_knee = right_knee for a right-foot shot
     P, C, E  plant, contact and end frames from reps.json
@@ -52,7 +53,7 @@ def plant_foot_distance(ctx):
     """
     f = ctx.plant
     ankle, ball = ctx.point(f, f"{ctx.support}_ankle"), ctx.ball_at_rest(f)
-    if ankle is None or ball is None:
+    if ankle is None or ball is None or ctx.H is None:
         return None, f
     return abs(ankle[0] - ball[0]) / ctx.H, f
 
@@ -96,7 +97,7 @@ def knee_over_ball(ctx):
     """
     f = ctx.contact
     knee, ball = ctx.point(f, f"{ctx.foot}_knee"), ctx.ball_at_rest(f)
-    if knee is None or ball is None:
+    if knee is None or ball is None or ctx.H is None:
         return None, f
     return ctx.direction * (knee[0] - ball[0]) / ctx.H, f
 
@@ -211,7 +212,7 @@ def follow_through(ctx):
     direction of travel. Frame: E.
     """
     c_ank, e_ank = ctx.point(ctx.contact, f"{ctx.foot}_ankle"), ctx.point(ctx.end, f"{ctx.foot}_ankle")
-    if c_ank is None or e_ank is None:
+    if c_ank is None or e_ank is None or ctx.H is None:
         return None, ctx.end
     return ctx.direction * (e_ank[0] - c_ank[0]) / ctx.H, ctx.end
 
