@@ -250,8 +250,49 @@ class TestSynthetic(ContractMixin, unittest.TestCase):
         self.assertValid({"schema_version": "1.0", "video": "v", "player_id": "p", "reps": reps}, pose)
         self.assertEqual(len(reps), 1)
         self.assertMatches(reps[0], truths[0], fps=30, contact_tol=1, phase_tol=1)
-        # without the shrink rule it's missed
-        self.assertEqual(detect_reps(pose, ball, None, RepsConfig(jump_shrink_frac=1.0))["reps"], [])
+        # without the shrink and leave-rest rules it's missed
+        self.assertEqual(detect_reps(pose, ball, None, RepsConfig(jump_shrink_frac=1.0, leave_rest_radii=1e9))["reps"], [])
+
+    def test_real_clip2_slow_on_screen_hidden_at_contact(self):
+        # Regression (real clip 2, 30 fps, per-rep H 250 px): the ball rests at (480, 429) r 18.8
+        # through f176, is hidden f177-178, then flies away at 2.78 H/s on screen (under jump_speed).
+        # The 25% radius drop lands at f181: one frame past a shrink window measured from f176.
+        C = 176
+        sc = Scenario(reps=[RepSpec("right", approach_s=C / 30, scale=250 / BODY_H)], fps=30, noise_px=0.3, seed=2)
+        pose, ball, truths = generate(sc)
+        self.assertEqual(truths[0]["contact"], C)
+        x0, y0 = ball["frames"][C]["ball"][:2]
+        dx, dy = 480 - x0, 429 - y0
+        for fr in pose["frames"]:      # move the player so the ball spot lands on (480, 429)
+            for kp in fr["keypoints"].values():
+                kp[0], kp[1] = round(kp[0] + dx, 2), round(kp[1] + dy, 2)
+        flight = {179: (468, 361, 15.5), 180: (461, 339, 14.7), 181: (455, 321, 13.2)}
+        for fr in ball["frames"]:
+            f = fr["f"]
+            if f <= C:
+                fr["ball"] = [round(fr["ball"][0] + dx, 2), round(fr["ball"][1] + dy, 2), 18.8, 0.9]
+            elif f in (177, 178):
+                fr["ball"] = None
+            else:          # the given detections, then keep receding along the same line
+                x, y, r = flight.get(f, (455 - 6 * (f - 181), 321 - 18 * (f - 181), max(6.0, 13.2 - 1.2 * (f - 181))))
+                fr["ball"] = [x, y, r, 0.9] if y > 0 else None
+        H = rep_body_height(pose["frames"], {"start": C - 30, "plant": truths[0]["plant"], "contact": C}, 30)
+        self.assertAlmostEqual(H, 250, delta=5)
+        self.assertLess(math.dist((468, 361), (461, 339)) * 30 / H, RepsConfig().jump_speed)
+
+        reps = detect_reps(pose, ball)["reps"]
+        self.assertValid({"schema_version": "1.0", "video": "v", "player_id": "p", "reps": reps}, pose)
+        self.assertEqual(len(reps), 1)
+        self.assertEqual(reps[0]["foot"], "right")
+        self.assertEqual(reps[0]["frames"]["contact"], C)
+        # each fix finds it on its own: (a) the ball cleared 2 rest radii and kept going ...
+        only_a = detect_reps(pose, ball, None, RepsConfig(jump_shrink_frac=1.0))["reps"]
+        self.assertEqual([r["frames"]["contact"] for r in only_a], [C])
+        # ... (b) the shrink window starts at f179, the first detection off the spot, so f181 counts
+        only_b = detect_reps(pose, ball, None, RepsConfig(leave_rest_radii=1e9))["reps"]
+        self.assertEqual([r["frames"]["contact"] for r in only_b], [C])
+        # and with neither, it's the original miss
+        self.assertEqual(detect_reps(pose, ball, None, RepsConfig(jump_shrink_frac=1.0, leave_rest_radii=1e9))["reps"], [])
 
     def test_foot_covering_resting_ball_is_not_a_shot(self):
         # the detector's radius drops 40% while the foot covers part of the ball, but it never leaves its spot
@@ -287,6 +328,10 @@ class TestSynthetic(ContractMixin, unittest.TestCase):
     def test_slow_roll_is_not_a_shot(self):
         reps, _ = self.run_scenario(Scenario(reps=[RepSpec(ball_speed_hs=1.5)]))
         self.assertEqual(reps, [])
+        # at 30 fps it moves 0.05 H a frame: under 2 rest radii (0.06 H), so the leave-rest rule skips it
+        for seed in range(10):
+            reps, _ = self.run_scenario(Scenario(reps=[RepSpec(ball_speed_hs=1.5)], fps=30, noise_px=2.9, seed=seed))
+            self.assertEqual(reps, [], seed)
 
     def test_thresholds_are_configurable(self):
         sc = Scenario(reps=[RepSpec(ball_speed_hs=1.5)])

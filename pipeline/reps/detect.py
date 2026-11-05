@@ -171,9 +171,11 @@ def _vanish_contact(tr: Tracks, a: int, b: int | None, rest, rest_r, H: float, c
     return None                             # no moving foot reached the ball
 
 
-def _shrink_frame(tr: Tracks, vis: np.ndarray, a: int, rest_r: float, cfg: RepsConfig) -> int | None:
-    """First detection within `shrink_window_s` after a whose radius dropped by `jump_shrink_frac`."""
-    win = vis[(vis > a) & (vis <= a + cfg.frames(cfg.shrink_window_s, tr.fps))]
+def _shrink_frame(tr: Tracks, vis: np.ndarray, b: int, rest_r: float, cfg: RepsConfig) -> int | None:
+    """First detection within `shrink_window_s` of b (the first one off the resting spot) whose
+    radius dropped by `jump_shrink_frac`. Anchored at b, not at the last rest frame, so an
+    occlusion at contact doesn't eat into the window."""
+    win = vis[(vis >= b) & (vis <= b + cfg.frames(cfg.shrink_window_s, tr.fps))]
     hit = win[tr.ball_r[win] <= (1 - cfg.jump_shrink_frac) * rest_r]
     return int(hit[0]) if len(hit) else None
 
@@ -211,9 +213,13 @@ def find_contacts(tr: Tracks, cfg: RepsConfig) -> list[Contact]:
         glitch = c is not None and _dist(tr.ball[c], rest) <= d_b   # a one-frame jump, not a kick
         v = float(_dist(tr.ball[c], tr.ball[b])) / (c - b) if c is not None else d_b / (b - a)
         speed = v * fps / H
-        # A ball struck away from the camera moves slowly on screen, but shrinks.
-        shrunk = _shrink_frame(tr, vis, a, rest_r, cfg) is not None
-        if not ((not glitch and speed >= cfg.jump_speed) or shrunk):
+        # A ball struck away from the camera moves slowly on screen: it still clears its spot in
+        # one step and keeps going, or shrinks. The step is from a, not the rest median, which lags
+        # behind a ball that has just started to roll.
+        step = float(_dist(tr.ball[b], tr.ball[a]))
+        left = c is not None and not glitch and step >= cfg.leave_rest_radii * cfg.rest_radius * H
+        shrunk = _shrink_frame(tr, vis, b, rest_r, cfg) is not None
+        if not ((not glitch and speed >= cfg.jump_speed) or left or shrunk):
             continue
 
         # Back-project to when the ball left its resting spot (handles occlusion at contact).
